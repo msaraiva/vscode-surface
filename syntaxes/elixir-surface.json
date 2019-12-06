@@ -1,0 +1,49 @@
+{
+  "injectionSelector": "L:source.elixir -comment -text",
+  "name": "elixir-surface",
+  "patterns": [
+    {
+      "comment": "Surface property",
+      "match": "\\b(property)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
+      "captures": {
+        "1": {
+          "name": "entity.name.type.property.elixir"
+        },
+        "2": {
+          "name": "variable.other.readwrite.module.elixir"
+        },
+        "3": {
+          "name": "parameter.variable.function.elixir"
+        }
+      }
+    },
+    {
+      "comment": "Surface heredoc with double quotes",
+      "name": "text.html.surface",
+      "begin": "\\s?(~H\"\"\")$",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.elixir"
+        },
+        "1": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "end": "^\\s*(\"\"\"[a-z]*)$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.elixir"
+        },
+        "1": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.surface"
+        }
+      ]
+    }
+  ],
+  "scopeName": "source.elixir.surface"
+}

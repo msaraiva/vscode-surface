@@ -1,0 +1,49 @@
+{
+    "name": "surface",
+    "displayName": "Surface: A component based library for Phoenix",
+    "description": "Syntax highlighting support for Surface/Elixir",
+    "version": "0.1.0",
+    "author": "Marlus Saraiva",
+    "publisher": "elixir-lsp",
+    "license": "MIT",
+    "icon": "images/logo.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/msaraiva/vscode-surface.git"
+    },
+    "engines": {
+        "vscode": "^1.25.1"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "surface",
+                "aliases": [
+                    "Surface",
+                    "surface"
+                ],
+                "extensions": [
+                    ".sface"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "surface",
+                "scopeName": "source.surface",
+                "path": "./syntaxes/surface.json"
+            },
+            {
+                "scopeName": "source.elixir.surface",
+                "path": "./syntaxes/elixir-surface.json",
+                "injectTo": [
+                    "source.elixir"
+                ]
+            }
+        ]
+    }
+}
