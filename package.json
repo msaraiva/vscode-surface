@@ -4,7 +4,7 @@
     "description": "Syntax highlighting support for Surface/Elixir",
     "version": "0.1.0",
     "author": "Marlus Saraiva",
-    "publisher": "elixir-lsp",
+    "publisher": "msaraiva",
     "license": "MIT",
     "icon": "images/logo.png",
     "repository": {
