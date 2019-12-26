@@ -1,5 +1,5 @@
 {
-  "injectionSelector": "L:source.elixir -comment -text",
+  "injectionSelector": "L:source.elixir -comment -text -string",
   "name": "elixir-surface",
   "patterns": [
     {
