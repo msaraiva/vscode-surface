@@ -14,4 +14,6 @@ Syntax highlighting support for Surface/Elixir
 
 ## License
 
-The MIT License.
+Copyright (c) 2019, Marlus Saraiva.
+
+Surface source code is licensed under the [MIT License](LICENSE).
