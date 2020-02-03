@@ -4,7 +4,7 @@
   "patterns": [
     {
       "comment": "Surface property",
-      "match": "\\b(property)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
+      "match": "^\\s*\\b(property|data)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
       "captures": {
         "1": {
           "name": "entity.name.type.property.elixir"
