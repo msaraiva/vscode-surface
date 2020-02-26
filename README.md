@@ -5,7 +5,7 @@ Syntax highlighting support for Surface/Elixir
 ## Features
 
   * Extends Elixir's syntax highlighting to support Surface's syntax inside `~H`
-  * Highlight `property` definitions
+  * Highlights `property`, `data` and `context` definitions
   * Support syntax highlighting for `.sface` files
 
 ## Screenshots

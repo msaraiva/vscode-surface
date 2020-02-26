@@ -1,5 +1,9 @@
 # Change Log
 
+### v0.3.0: 26 Feb 2020
+
+- Add syntax highlighting for new `context` function
+
 ### v0.2.0: 02 Feb 2020
 
 - Add syntax highlighting for new `data` function
