@@ -3,7 +3,7 @@
   "name": "elixir-surface",
   "patterns": [
     {
-      "comment": "Surface property",
+      "comment": "Surface property/data",
       "match": "^\\s*\\b(property|data)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
       "captures": {
         "1": {
@@ -13,6 +13,24 @@
           "name": "variable.other.readwrite.module.elixir"
         },
         "3": {
+          "name": "parameter.variable.function.elixir"
+        }
+      }
+    },
+    {
+      "comment": "Surface context",
+      "match": "^\\s*\\b(context)\\b\\s*\\b(get|set)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
+      "captures": {
+        "1": {
+          "name": "entity.name.type.property.elixir"
+        },
+        "2": {
+          "name": "entity.name.function.elixir"
+        },
+        "3": {
+          "name": "variable.other.readwrite.module.elixir"
+        },
+        "4": {
           "name": "parameter.variable.function.elixir"
         }
       }
