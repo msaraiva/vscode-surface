@@ -57,6 +57,29 @@
     "tags": {
 			"patterns": [
 				{
+          "begin": "(</?)(slot)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.html"
+            },
+            "2": {
+              "name": "entity.name.type.module.elixir"
+            }
+          },
+          "end": "((?: ?/)?>)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.end.html"
+            }
+          },
+          "name": "meta.tag.other.unrecognized.html.derivative",
+          "patterns": [
+            {
+              "include": "#attribute"
+            }
+          ]
+        },
+				{
           "begin": "(</?)(\\w[^\\s>]*)(?<!/)",
           "beginCaptures": {
             "1": {

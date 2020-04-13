@@ -3,8 +3,8 @@
   "name": "elixir-surface",
   "patterns": [
     {
-      "comment": "Surface property/data",
-      "match": "^\\s*\\b(property|data)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
+      "comment": "Surface property/data/slot",
+      "match": "^\\s*\\b(property|data|slot)\\b\\s*([_$a-z][$\\w]*[!?]?)\\s*,?\\s*(:[_$a-z][$\\w]*[!?]?)?",
       "captures": {
         "1": {
           "name": "entity.name.type.property.elixir"
