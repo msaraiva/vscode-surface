@@ -1,5 +1,10 @@
 # Change Log
 
+### v0.4.0: 13 Apr 2020
+
+- Add syntax highlighting for new `slot` function
+- Change syntax highlighting color for `<slot>` to the same as a component
+
 ### v0.3.0: 26 Feb 2020
 
 - Add syntax highlighting for new `context` function
