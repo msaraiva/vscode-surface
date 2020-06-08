@@ -1,5 +1,9 @@
 # Change Log
 
+### v0.5.0: 08 Jun 2020
+
+- Add syntax highlighting for `<#Markdown>` component
+
 ### v0.4.0: 13 Apr 2020
 
 - Add syntax highlighting for new `slot` function
