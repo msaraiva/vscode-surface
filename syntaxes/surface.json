@@ -105,8 +105,75 @@
 			]
     },
     "components": {
-			"patterns": [
+      "patterns": [
+        {
+					"begin": "(^[ \\t]+)?(?=<(?i:\\#Markdown)\\b(?!-))",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.whitespace.embedded.leading.html"
+						}
+					},
+					"end": "(?!\\G)([ \\t]*$\\n?)?",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.whitespace.embedded.trailing.html"
+						}
+					},
+					"patterns": [
+						{
+							"begin": "(?i)(<)(\\#Markdown)(?=\\s|/?>)",
+							"beginCaptures": {
+								"1": {
+									"name": "punctuation.definition.tag.begin.html"
+								},
+								"2": {
+									"name": "entity.name.type.module.elixir"
+								}
+							},
+							"end": "(?i)((<)/)(#Markdown)\\s*(>)",
+							"endCaptures": {
+								"1": {
+									"name": "punctuation.definition.tag.begin.html"
+								},
+								"3": {
+									"name": "entity.name.type.module.elixir"
+								},
+								"4": {
+									"name": "punctuation.definition.tag.end.html"
+								}
+							},
+							"patterns": [
+								{
+									"begin": "\\G",
+									"captures": {
+										"1": {
+											"name": "punctuation.definition.tag.end.html"
+										}
+									},
+									"end": "(>)",
+									"name": "meta.tag.metadata.style.start.html",
+									"patterns": [
+										{
+											"include": "#attribute"
+										}
+									]
+								},
+								{
+									"begin": "(?!\\G)",
+									"end": "(?=</(?i:#Markdown))",
+									"name": "source.css",
+									"patterns": [
+										{
+											"include": "surface.markdown"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
 				{
+          "name": "meta.tag.other.unrecognized.html.derivative",
           "begin": "(</?)([A-Z|\\#][^\\s>]*)(?<!/)",
           "beginCaptures": {
             "1": {
@@ -122,14 +189,13 @@
               "name": "punctuation.definition.tag.end.html"
             }
           },
-          "name": "meta.tag.other.unrecognized.html.derivative",
           "patterns": [
             {
               "include": "#attribute"
             }
           ]
         }
-			]
+      ]
     },
     "attribute": {
 			"patterns": [

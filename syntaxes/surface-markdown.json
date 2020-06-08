@@ -1,0 +1,736 @@
+{
+	"name": "surface-markdown",
+	"scopeName": "surface.markdown",
+	"patterns": [
+		{
+			"include": "#block"
+		}
+	],
+	"repository": {
+		"block": {
+			"patterns": [
+				{
+					"include": "#separator"
+				},
+				{
+					"include": "#heading"
+				},
+				{
+					"include": "#blockquote"
+				},
+				{
+					"include": "#list_item"
+				},
+				{
+					"include": "#fenced_code_block"
+				},
+				{
+					"include": "#link-def"
+				},
+				{
+					"include": "#link-def"
+				},
+				{
+					"include": "#html"
+				},
+				{
+					"include": "#inline"
+				}
+			]
+		},
+		"blockquote": {
+			"begin": "(^|\\G)[ ]*(>) ?",
+			"captures": {
+				"2": {
+					"name": "punctuation.definition.quote.begin.markdown"
+				}
+			},
+			"name": "markup.quote.markdown",
+			"patterns": [
+				{
+					"include": "#block"
+				}
+			],
+			"while": "(^|\\G)\\s*(>) ?"
+		},
+		"fenced_code_block": {
+			"patterns": [
+				{
+					"include": "#fenced_code_block_unknown"
+				}
+			]
+		},
+		"fenced_code_block_unknown": {
+			"begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?=([^`~]*)?$)",
+			"beginCaptures": {
+				"3": {
+					"name": "punctuation.definition.markdown"
+				},
+				"4": {
+					"name": "fenced_code.block.language"
+				}
+			},
+			"end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+			"endCaptures": {
+				"3": {
+					"name": "punctuation.definition.markdown"
+				}
+			},
+			"name": "markup.fenced_code.block.markdown"
+		},
+		"heading": {
+			"match": "(?:^|\\G)[ ]*((#{1,6})\\s+(?=[\\S[^#]]).*?\\s*(#{1,6})?)$\\n?",
+			"captures": {
+				"1": {
+					"patterns": [
+						{
+							"match": "(#{6})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.6.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						},
+						{
+							"match": "(#{5})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.5.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						},
+						{
+							"match": "(#{4})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.4.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						},
+						{
+							"match": "(#{3})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.3.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						},
+						{
+							"match": "(#{2})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.2.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						},
+						{
+							"match": "(#{1})\\s+(?=[\\S[^#]])(.*?)\\s*(\\s+#+)?$\\n?",
+							"name": "heading.1.markdown",
+							"captures": {
+								"1": {
+									"name": "punctuation.definition.heading.markdown"
+								},
+								"2": {
+									"name": "entity.name.section.markdown"
+								},
+								"3": {
+									"name": "punctuation.definition.heading.markdown"
+								}
+							}
+						}
+					]
+				}
+			},
+			"name": "markup.heading.markdown",
+			"patterns": [
+				{
+					"include": "#inline"
+				}
+			]
+		},
+		"html": {
+			"patterns": [
+				{
+					"begin": "(^|\\G)\\s*(<!--)",
+					"captures": {
+						"1": {
+							"name": "punctuation.definition.comment.html"
+						},
+						"2": {
+							"name": "punctuation.definition.comment.html"
+						}
+					},
+					"end": "(-->)",
+					"name": "comment.block.html"
+				},
+				{
+					"begin": "(?i)(^|\\G)\\s*(?=<(script|style|pre)(\\s|$|>)(?!.*?</(script|style|pre)>))",
+					"end": "(?i)(.*)((</)(script|style|pre)(>))",
+					"endCaptures": {
+						"1": {
+							"patterns": [
+								{
+									"include": "text.html.derivative"
+								}
+							]
+						},
+						"2": {
+							"name": "meta.tag.structure.$4.end.html"
+						},
+						"3": {
+							"name": "punctuation.definition.tag.begin.html"
+						},
+						"4": {
+							"name": "entity.name.tag.html"
+						},
+						"5": {
+							"name": "punctuation.definition.tag.end.html"
+						}
+					},
+					"patterns": [
+						{
+							"begin": "(\\s*|$)",
+							"patterns": [
+								{
+									"include": "text.html.derivative"
+								}
+							],
+							"while": "(?i)^(?!.*</(script|style|pre)>)"
+						}
+					]
+				},
+				{
+					"begin": "(?i)(^|\\G)\\s*(?=</?[a-zA-Z]+[^\\s/&gt;]*(\\s|$|/?>))",
+					"patterns": [
+						{
+							"include": "text.html.derivative"
+						}
+					],
+					"while": "^(?!\\s*$)"
+				},
+				{
+					"begin": "(^|\\G)\\s*(?=(<[a-zA-Z0-9\\-](/?>|\\s.*?>)|</[a-zA-Z0-9\\-]>)\\s*$)",
+					"patterns": [
+						{
+							"include": "text.html.derivative"
+						}
+					],
+					"while": "^(?!\\s*$)"
+				}
+			]
+		},
+		"link-def": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.constant.markdown"
+				},
+				"2": {
+					"name": "constant.other.reference.link.markdown"
+				},
+				"3": {
+					"name": "punctuation.definition.constant.markdown"
+				},
+				"4": {
+					"name": "punctuation.separator.key-value.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"6": {
+					"name": "markup.underline.link.markdown"
+				},
+				"7": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"8": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"9": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"10": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"11": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"12": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"13": {
+					"name": "punctuation.definition.string.end.markdown"
+				}
+			},
+			"match": "(?x)\n  \\s*            # Leading whitespace\n  (\\[)([^]]+?)(\\])(:)    # Reference name\n  [ \\t]*          # Optional whitespace\n  (<?)(\\S+?)(>?)      # The url\n  [ \\t]*          # Optional whitespace\n  (?:\n      ((\\().+?(\\)))    # Match title in quotes…\n    | ((\").+?(\"))    # or in parens.\n  )?            # Title is optional\n  \\s*            # Optional whitespace\n  $\n",
+			"name": "meta.link.reference.def.markdown"
+		},
+		"list_item": {
+			"patterns": [
+				{
+					"name": "markup.list.unnumbered.markdown",
+					"match": "(^|\\G)([ ]*)([*+-])([ \\t])",
+					"captures": {
+						"3": {
+							"name": "punctuation.definition.list.begin.markdown"
+						}
+					}
+				},
+				{
+					"name": "markup.list.numbered.markdown",
+					"match": "(^|\\G)([ ]*)([0-9]+\\.)([ \\t])",
+					"captures": {
+						"3": {
+							"name": "punctuation.definition.list.begin.markdown"
+						}
+					}
+				}
+			]
+		},
+		"separator": {
+			"match": "(^|\\G)[ ]*([\\*\\-\\_])([ ]{0,2}\\2){2,}[ \\t]*$\\n?",
+			"name": "meta.separator.markdown"
+		},
+		"inline": {
+			"patterns": [
+				{
+					"include": "#ampersand"
+				},
+				{
+					"include": "#bracket"
+				},
+				{
+					"include": "#bold"
+				},
+				{
+					"include": "#italic"
+				},
+				{
+					"include": "#raw"
+				},
+				{
+					"include": "#escape"
+				},
+				{
+					"include": "#image-inline"
+				},
+				{
+					"include": "#image-ref"
+				},
+				{
+					"include": "#link-email"
+				},
+				{
+					"include": "#link-inet"
+				},
+				{
+					"include": "#link-inline"
+				},
+				{
+					"include": "#link-ref"
+				},
+				{
+					"include": "#link-ref-literal"
+				},
+				{
+					"include": "#link-ref-shortcut"
+				}
+			]
+		},
+		"ampersand": {
+			"comment": "Markdown will convert this for us. We match it so that the HTML grammar will not mark it up as invalid.",
+			"match": "&(?!([a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+);)",
+			"name": "meta.other.valid-ampersand.markdown"
+		},
+		"bold": {
+			"begin": "(?x) (?<open>(\\*\\*(?=\\w)|(?<!\\w)\\*\\*|(?<!\\w)\\b__))(?=\\S) (?=\n  (\n    <[^>]*+>              # HTML tags\n    | (?<raw>`+)([^`]|(?!(?<!`)\\k<raw>(?!`))`)*+\\k<raw>\n                      # Raw\n    | \\\\[\\\\`*_{}\\[\\]()#.!+\\->]?+      # Escapes\n    | \\[\n    (\n        (?<square>          # Named group\n          [^\\[\\]\\\\]        # Match most chars\n          | \\\\.            # Escaped chars\n          | \\[ \\g<square>*+ \\]    # Nested brackets\n        )*+\n      \\]\n      (\n        (              # Reference Link\n          [ ]?          # Optional space\n          \\[[^\\]]*+\\]        # Ref name\n        )\n        | (              # Inline Link\n          \\(            # Opening paren\n            [ \\t]*+        # Optional whitespace\n            <?(.*?)>?      # URL\n            [ \\t]*+        # Optional whitespace\n            (          # Optional Title\n              (?<title>['\"])\n              (.*?)\n              \\k<title>\n            )?\n          \\)\n        )\n      )\n    )\n    | (?!(?<=\\S)\\k<open>).            # Everything besides\n                      # style closer\n  )++\n  (?<=\\S)(?=__\\b|\\*\\*)\\k<open>                # Close\n)\n",
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.bold.markdown"
+				}
+			},
+			"end": "(?<=\\S)(\\1)",
+			"name": "markup.bold.markdown",
+			"patterns": [
+				{
+					"applyEndPatternLast": 1,
+					"begin": "(?=<[^>]*?>)",
+					"end": "(?<=>)",
+					"patterns": [
+						{
+							"include": "text.html.derivative"
+						}
+					]
+				},
+				{
+					"include": "#escape"
+				},
+				{
+					"include": "#ampersand"
+				},
+				{
+					"include": "#bracket"
+				},
+				{
+					"include": "#raw"
+				},
+				{
+					"include": "#bold"
+				},
+				{
+					"include": "#italic"
+				},
+				{
+					"include": "#image-inline"
+				},
+				{
+					"include": "#link-inline"
+				},
+				{
+					"include": "#link-inet"
+				},
+				{
+					"include": "#link-email"
+				},
+				{
+					"include": "#image-ref"
+				},
+				{
+					"include": "#link-ref-literal"
+				},
+				{
+					"include": "#link-ref"
+				},
+				{
+					"include": "#link-ref-shortcut"
+				}
+			]
+		},
+		"bracket": {
+			"comment": "Markdown will convert this for us. We match it so that the HTML grammar will not mark it up as invalid.",
+			"match": "<(?![a-zA-Z/?\\$!])",
+			"name": "meta.other.valid-bracket.markdown"
+		},
+		"escape": {
+			"match": "\\\\[-`*_#+.!(){}\\[\\]\\\\>]",
+			"name": "constant.character.escape.markdown"
+		},
+		"image-inline": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.description.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.metadata.markdown"
+				},
+				"6": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"7": {
+					"name": "markup.underline.link.image.markdown"
+				},
+				"8": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"9": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"10": {
+					"name": "punctuation.definition.string.markdown"
+				},
+				"11": {
+					"name": "punctuation.definition.string.markdown"
+				},
+				"12": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"13": {
+					"name": "punctuation.definition.string.markdown"
+				},
+				"14": {
+					"name": "punctuation.definition.string.markdown"
+				},
+				"15": {
+					"name": "punctuation.definition.metadata.markdown"
+				}
+			},
+			"match": "(?x)\n  (\\!\\[)((?<square>[^\\[\\]\\\\]|\\\\.|\\[\\g<square>*+\\])*+)(\\])\n                # Match the link text.\n  (\\()            # Opening paren for url\n    (<?)(\\S+?)(>?)      # The url\n    [ \\t]*          # Optional whitespace\n    (?:\n        ((\\().+?(\\)))    # Match title in parens…\n      | ((\").+?(\"))    # or in quotes.\n    )?            # Title is optional\n    \\s*            # Optional whitespace\n  (\\))\n",
+			"name": "meta.image.inline.markdown"
+		},
+		"image-ref": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.description.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.constant.markdown"
+				},
+				"6": {
+					"name": "constant.other.reference.link.markdown"
+				},
+				"7": {
+					"name": "punctuation.definition.constant.markdown"
+				}
+			},
+			"match": "(\\!\\[)((?<square>[^\\[\\]\\\\]|\\\\.|\\[\\g<square>*+\\])*+)(\\])[ ]?(\\[)(.*?)(\\])",
+			"name": "meta.image.reference.markdown"
+		},
+		"italic": {
+			"begin": "(?x) (?<open>(\\*(?=\\w)|(?<!\\w)\\*|(?<!\\w)\\b_))(?=\\S)                # Open\n  (?=\n    (\n      <[^>]*+>              # HTML tags\n      | (?<raw>`+)([^`]|(?!(?<!`)\\k<raw>(?!`))`)*+\\k<raw>\n                        # Raw\n      | \\\\[\\\\`*_{}\\[\\]()#.!+\\->]?+      # Escapes\n      | \\[\n      (\n          (?<square>          # Named group\n            [^\\[\\]\\\\]        # Match most chars\n            | \\\\.            # Escaped chars\n            | \\[ \\g<square>*+ \\]    # Nested brackets\n          )*+\n        \\]\n        (\n          (              # Reference Link\n            [ ]?          # Optional space\n            \\[[^\\]]*+\\]        # Ref name\n          )\n          | (              # Inline Link\n            \\(            # Opening paren\n              [ \\t]*+        # Optional whtiespace\n              <?(.*?)>?      # URL\n              [ \\t]*+        # Optional whtiespace\n              (          # Optional Title\n                (?<title>['\"])\n                (.*?)\n                \\k<title>\n              )?\n            \\)\n          )\n        )\n      )\n      | \\k<open>\\k<open>                # Must be bold closer\n      | (?!(?<=\\S)\\k<open>).            # Everything besides\n                        # style closer\n    )++\n    (?<=\\S)(?=_\\b|\\*)\\k<open>                # Close\n  )\n",
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.italic.markdown"
+				}
+			},
+			"end": "(?<=\\S)(\\1)((?!\\1)|(?=\\1\\1))",
+			"name": "markup.italic.markdown",
+			"patterns": [
+				{
+					"applyEndPatternLast": 1,
+					"begin": "(?=<[^>]*?>)",
+					"end": "(?<=>)",
+					"patterns": [
+						{
+							"include": "text.html.derivative"
+						}
+					]
+				},
+				{
+					"include": "#escape"
+				},
+				{
+					"include": "#ampersand"
+				},
+				{
+					"include": "#bracket"
+				},
+				{
+					"include": "#raw"
+				},
+				{
+					"include": "#bold"
+				},
+				{
+					"include": "#image-inline"
+				},
+				{
+					"include": "#link-inline"
+				},
+				{
+					"include": "#link-inet"
+				},
+				{
+					"include": "#link-email"
+				},
+				{
+					"include": "#image-ref"
+				},
+				{
+					"include": "#link-ref-literal"
+				},
+				{
+					"include": "#link-ref"
+				},
+				{
+					"include": "#link-ref-shortcut"
+				}
+			]
+		},
+		"link-email": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"2": {
+					"name": "markup.underline.link.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.link.markdown"
+				}
+			},
+			"match": "(<)((?:mailto:)?[-.\\w]+@[-a-z0-9]+(\\.[-a-z0-9]+)*\\.[a-z]+)(>)",
+			"name": "meta.link.email.lt-gt.markdown"
+		},
+		"link-inet": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"2": {
+					"name": "markup.underline.link.markdown"
+				},
+				"3": {
+					"name": "punctuation.definition.link.markdown"
+				}
+			},
+			"match": "(<)((?:https?|ftp)://.*?)(>)",
+			"name": "meta.link.inet.markdown"
+		},
+		"link-inline": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.title.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.metadata.markdown"
+				},
+				"6": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"7": {
+					"name": "markup.underline.link.markdown"
+				},
+				"9": {
+					"name": "punctuation.definition.link.markdown"
+				},
+				"10": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"11": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"12": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"13": {
+					"name": "string.other.link.description.title.markdown"
+				},
+				"14": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"15": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"16": {
+					"name": "punctuation.definition.metadata.markdown"
+				}
+			},
+			"match": "(?x)\n  (\\[)((?<square>[^\\[\\]\\\\]|\\\\.|\\[\\g<square>*+\\])*+)(\\])\n                # Match the link text.\n  (\\()            # Opening paren for url\n    (<?)((?<url>(?>[^\\s()]+)|\\(\\g<url>*\\))*)(>?)      # The url\n    [ \\t]*          # Optional whitespace\n    (?:\n        ((\\().+?(\\)))    # Match title in parens…\n      | ((\").+?(\"))    # or in quotes.\n    )?            # Title is optional\n    \\s*            # Optional whitespace\n  (\\))\n",
+			"name": "meta.link.inline.markdown"
+		},
+		"link-ref": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.title.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.constant.begin.markdown"
+				},
+				"6": {
+					"name": "constant.other.reference.link.markdown"
+				},
+				"7": {
+					"name": "punctuation.definition.constant.end.markdown"
+				}
+			},
+			"match": "(\\[)((?<square>[^\\[\\]\\\\]|\\\\.|\\[\\g<square>*+\\])*+)(\\])(\\[)([^\\]]*+)(\\])",
+			"name": "meta.link.reference.markdown"
+		},
+		"link-ref-literal": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.title.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.string.end.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.constant.begin.markdown"
+				},
+				"6": {
+					"name": "punctuation.definition.constant.end.markdown"
+				}
+			},
+			"match": "(\\[)((?<square>[^\\[\\]\\\\]|\\\\.|\\[\\g<square>*+\\])*+)(\\])[ ]?(\\[)(\\])",
+			"name": "meta.link.reference.literal.markdown"
+		},
+		"link-ref-shortcut": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.string.begin.markdown"
+				},
+				"2": {
+					"name": "string.other.link.title.markdown"
+				},
+				"3": {
+					"name": "punctuation.definition.string.end.markdown"
+				}
+			},
+			"match": "(\\[)(\\S+?)(\\])",
+			"name": "meta.link.reference.markdown"
+		},
+		"raw": {
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.raw.markdown"
+				},
+				"3": {
+					"name": "punctuation.definition.raw.markdown"
+				}
+			},
+			"match": "(`+)([^`]|(?!(?<!`)\\1(?!`))`)*+(\\1)",
+			"name": "markup.inline.raw.string.markdown"
+		}
+	}
+}
