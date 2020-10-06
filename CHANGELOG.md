@@ -1,5 +1,10 @@
 # Change Log
 
+### v0.6.0: 06 Oct 2020
+
+- Add syntax highlighting for `prop`
+- Remove syntax highlighting for `property` and `context`
+
 ### v0.5.0: 08 Jun 2020
 
 - Add syntax highlighting for `<#Markdown>` component
