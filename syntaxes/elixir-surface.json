@@ -18,23 +18,101 @@
       }
     },
     {
-      "comment": "Surface heredoc with double quotes",
+      "comment": "Surface sigil with heredoc (double quotes)",
       "name": "text.html.surface",
-      "begin": "\\s?(~H\"\"\")$",
+      "begin": "\\s?(~F\"\"\")$",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.definition.string.begin.elixir"
-        },
-        "1": {
           "name": "string.quoted.double.heredoc.elixir"
         }
       },
       "end": "^\\s*(\"\"\"[a-z]*)$",
       "endCaptures": {
         "0": {
-          "name": "punctuation.definition.string.end.elixir"
-        },
-        "1": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.surface"
+        }
+      ]
+    },
+    {
+      "comment": "Surface sigil with double quotes",
+      "name": "text.html.surface",
+      "begin": "~F\\\"",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "end": "\\\"[a-z]*",
+      "endCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.surface"
+        }
+      ]
+    },
+    {
+      "comment": "Surface sigil with square brackets",
+      "name": "text.html.surface",
+      "begin": "~F\\[",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "end": "\\][a-z]*",
+      "endCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.surface"
+        }
+      ]
+    },
+    {
+      "comment": "Surface sigil with parentheses",
+      "name": "text.html.surface",
+      "begin": "~F\\(",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "end": "\\)[a-z]*",
+      "endCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.surface"
+        }
+      ]
+    },
+    {
+      "comment": "Surface sigil with curly brackets",
+      "name": "text.html.surface",
+      "begin": "~F\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.heredoc.elixir"
+        }
+      },
+      "end": "\\}[a-z]*",
+      "endCaptures": {
+        "0": {
           "name": "string.quoted.double.heredoc.elixir"
         }
       },

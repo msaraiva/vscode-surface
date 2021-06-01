@@ -4,9 +4,10 @@ Syntax highlighting support for Surface/Elixir
 
 ## Features
 
-  * Extends Elixir's syntax highlighting to support Surface's syntax inside `~H`
+  * Extends Elixir's syntax highlighting to support Surface's syntax inside `~F`
   * Highlights `prop`, `data` and `slot` definitions
-  * Highlights `<slot>` with the same color as a component
+  * Highlights `<#slot>` and `<#template>` with the same color as components
+  * Highlights slotables using the `<:slotable>` notation with the same color as attributes
   * Support syntax highlighting for `<#Markdown>` component
   * Support syntax highlighting for `.sface` files
 
