@@ -20,7 +20,7 @@
     {
       "comment": "Surface heredoc with double quotes",
       "name": "text.html.surface",
-      "begin": "\\s?(~H\"\"\")$",
+      "begin": "\\s?(~[HF]\"\"\")$",
       "beginCaptures": {
         "0": {
           "name": "punctuation.definition.string.begin.elixir"
