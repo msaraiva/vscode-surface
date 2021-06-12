@@ -33,14 +33,14 @@
     "surface-interpolation": {
       "patterns": [
         {
-          "begin": "\\{\\{\\{?",
+          "begin": "\\{\\{?\\{?",
           "name": "source.elixir.embedded",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.embedded.begin.elixir"
             }
           },
-          "end": "\\}\\}\\}?",
+          "end": "\\}\\}?\\}?",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.embedded.end.elixir"
