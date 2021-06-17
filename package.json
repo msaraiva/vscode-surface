@@ -38,10 +38,6 @@
                 "path": "./syntaxes/surface.json"
             },
             {
-                "scopeName": "surface.markdown",
-                "path": "./syntaxes/surface-markdown.json"
-            },
-            {
                 "scopeName": "source.elixir.surface",
                 "path": "./syntaxes/elixir-surface.json",
                 "injectTo": [
