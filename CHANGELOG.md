@@ -1,5 +1,9 @@
 # Change Log
 
+### v0.7.0: 17 Jun 2021
+
+- Update syntax to Surface `v0.5`
+
 ### v0.6.0: 06 Oct 2020
 
 - Add syntax highlighting for `prop`
