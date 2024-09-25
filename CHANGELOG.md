@@ -1,5 +1,9 @@
 # Change Log
 
+### v0.7.1: 25 Sep 2024
+
+- Add syntax highlighting for function components
+
 ### v0.7.0: 17 Jun 2021
 
 - Update syntax to Surface `v0.5`
