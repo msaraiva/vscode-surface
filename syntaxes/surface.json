@@ -252,7 +252,7 @@
       "patterns": [
         {
           "name": "meta.tag.other.unrecognized.html.derivative",
-          "begin": "(</?)([A-Z|\\#][^\\s>]*)(?<!/)",
+          "begin": "(</?)([A-Z|\\#\\.][^\\s>]*)(?<!/)",
           "beginCaptures": {
             "1": {
               "name": "punctuation.definition.tag.begin.html"
