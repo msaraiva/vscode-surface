@@ -1,1 +1,5 @@
 *.vsix
+node_modules/
+*/out/
+tsconfig.tsbuildinfo
+.vscode-test

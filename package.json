@@ -12,11 +12,26 @@
         "url": "https://github.com/msaraiva/vscode-surface.git"
     },
     "engines": {
-        "vscode": "^1.25.1"
+        "vscode": "^1.75.0"
     },
     "categories": [
         "Programming Languages"
     ],
+    "main": "./client/out/extension",
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "lint": "eslint \"src/**/*.ts\"",
+        "watch": "tsc -b -w"
+    },
+    "devDependencies": {
+        "@types/node": "^18",
+        "@types/vscode": "^1.73.0",
+        "@typescript-eslint/eslint-plugin": "^7.14.0",
+        "@typescript-eslint/parser": "^7.14.0",
+        "eslint": "^8.26.0",
+        "typescript": "^5.5.2"
+    },
     "contributes": {
         "languages": [
             {
@@ -42,7 +57,10 @@
                 "path": "./syntaxes/elixir-surface.json",
                 "injectTo": [
                     "source.elixir"
-                ]
+                ],
+                "embeddedLanguages": {
+                    "text.html.surface": "surface"
+                }
             }
         ]
     }
