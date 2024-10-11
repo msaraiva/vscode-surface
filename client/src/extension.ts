@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ExtensionContext, workspace, TextDocument } from 'vscode';
+import { ExtensionContext, workspace, TextDocument, TextDocumentChangeEvent, Position, TextDocumentContentChangeEvent } from 'vscode';
 import { initParser, extractElixirAliases } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
@@ -18,7 +18,7 @@ let client: LanguageClient;
 
 // Build, store and return the parser tree.
 // We're keeping only the tree of the latest required file
-// TOOD: move this whole thing some place else
+// TODO: move this whole thing some place else
 let lastDocumentKey: string;
 let lastDocumentVersion: number;
 let parser: Parser;
@@ -33,7 +33,6 @@ const getTree = (document: TextDocument): Parser.Tree => {
 	}
 	return tree;
 };
-//
 
 export async function activate(extensionContext: ExtensionContext) {
 
@@ -62,6 +61,38 @@ export async function activate(extensionContext: ExtensionContext) {
 			return virtualDocumentContents.get(decodedUri);
 		}
 	});
+
+  workspace.onDidChangeTextDocument(({ document, contentChanges }) => {
+    if (document.uri.toString() == lastDocumentKey) {
+      console.log('contentChanges', contentChanges);
+      tree = updateTree(document, contentChanges);
+    }
+	});
+
+  const updateTree = (document: TextDocument, contentChanges: readonly TextDocumentContentChangeEvent[]) => {
+	  if (!tree) return tree;
+
+    for (const change of contentChanges) {
+      const startIndex = change.rangeOffset;
+      const oldEndIndex = change.rangeOffset + change.rangeLength;
+      const newEndIndex = change.rangeOffset + change.text.length;
+      const startPosition = asPoint(document.positionAt(startIndex));
+      const oldEndPosition = asPoint(document.positionAt(oldEndIndex));
+      const newEndPosition = asPoint(document.positionAt(newEndIndex));
+      tree.edit({ startIndex, oldEndIndex, newEndIndex, startPosition, oldEndPosition, newEndPosition });
+    }
+
+    return parser.parse(document.getText(), tree);
+  }
+
+  const asPoint = (position: Position): Parser.Point => {
+    return { row: position.line, column: position.character };
+  }
+
+  //TODO: clean up tree and friends
+  // workspace.onDidCloseTextDocument((document) => {
+
+  // });
 
 	// Language client options
 	const clientOptions: LanguageClientOptions = {
