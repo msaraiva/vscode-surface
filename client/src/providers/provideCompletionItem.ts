@@ -46,6 +46,12 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = getComponents(document.uri);
 
+    // TODO: don't do this if it's a complex snippet/range
+    htmlItems.items = htmlItems.items.map(item => {
+      item.range = document.getWordRangeAtPosition(position);
+      return item;
+    });
+
     const surfaceItems = components.map(component => {
       const item = new CompletionItem({
         label: `${component.alias}`,
