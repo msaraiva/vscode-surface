@@ -10,7 +10,8 @@ export const extractElixirAliases = (document: TextDocument) => {
 	const exFile = baseName + '.ex';
 	const aliases = {};
 
-	// TODO: should we use `workspace.fs` instead of `fs`?
+	// TODO: use `workspace.fs` instead of `fs`.
+  // See: https://code.visualstudio.com/updates/v1_37#_vscodeworkspacefs
 	if (fs.existsSync(exFile)) {
 		try {
 			const exContent = fs.readFileSync(exFile).toString();
