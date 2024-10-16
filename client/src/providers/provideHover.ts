@@ -35,6 +35,44 @@ export const provideHover = async (document: TextDocument, position: Position, _
     if (hover) return hover[0];
   }
 
+  if (node.lang == 'css') {
+    const virtualDocumentContents = context.virtualDocumentContents;
+    const originalUri = document.uri.toString(true);
+    const jsContent = toEmbeddedCode(tree, document.getText(), 'style');
+    virtualDocumentContents.set(originalUri, jsContent);
+    const vdocUriString = `embedded-content://css/${encodeURIComponent(originalUri)}.css`;
+    const vdocUri = Uri.parse(vdocUriString);
+
+    const hover: ProviderResult<Hover[]> = await commands.executeCommand(
+      "vscode.executeHoverProvider",
+      vdocUri,
+      position
+    );
+
+    if (hover) return hover[0];
+  }
+
+  // TODO: this will require the same strategy done in `provideDefinition` to provide
+  // accurate infomation coming from aliases or imports.
+  if (node.lang == 'surface' && node.scope == 'expression') {
+    console.log('hover surface/expression')
+    const virtualDocumentContents = context.virtualDocumentContents;
+    const originalUri = document.uri.toString(true);
+    virtualDocumentContents.set(originalUri, document.getText());
+    const vdocUriString = `embedded-content://ex/${encodeURIComponent(originalUri)}.ex`;
+    const vdocUri = Uri.parse(vdocUriString);
+
+    const hover: ProviderResult<Hover[]> = await commands.executeCommand(
+      "vscode.executeHoverProvider",
+      vdocUri,
+      position
+    );
+
+    console.log('hover result: ', hover);
+
+    if (hover) return hover[0];
+  }
+
   // Hover component (tag) name
 
 	if (node.scope == 'component_name') {
