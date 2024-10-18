@@ -1,5 +1,5 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
-import { getCursorInfo, toEmbeddedCode } from '../parserHelpers';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, Range, workspace, Uri } from 'vscode';
+import { asRange, getCursorInfo, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');
@@ -8,6 +8,17 @@ interface Context {
   tree: Parser.Tree;
   aliases: Object;
   virtualDocumentContents: Map<string, string>;
+}
+
+const maybeReplaceClosing = (item: CompletionItem, node, replaceText: string) => {
+  if ((node.scope == 'tag_name' || node.scope == 'component_name') && node.closingRange) {
+    item.additionalTextEdits = [
+      {
+        newText: replaceText,
+        range: node.closingRange
+      }
+    ]
+  }
 }
 
 export const provideCompletionItem = async (document: TextDocument, position: Position, _token: CancellationToken, completionContext: CompletionContext, context: Context): Promise<CompletionList<CompletionItem> | CompletionItem[]> => {
@@ -45,22 +56,28 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
   if (node.lang == 'surface' && (node.scope == 'tag_body') || node.scope == 'tag_name' || node.scope == 'component_name') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = getComponents(document.uri);
+    const range = document.getWordRangeAtPosition(position);
 
-    // TODO: don't do this if it's a complex snippet/range
+    // TODO: don't do this if it's a complex snippet/range?
     htmlItems.items = htmlItems.items.map(item => {
-      item.range = document.getWordRangeAtPosition(position);
+      // Always replace the whole tag with the selected item
+      item.range = range;
+      if (typeof item.label == 'string') {
+        maybeReplaceClosing(item, node, item.label);
+      }
       return item;
     });
 
     const surfaceItems = components.map(component => {
       const item = new CompletionItem({
-        label: `${component.alias}`,
+        label: component.alias,
         description: component.name}, CompletionItemKind.Class
       );
       item.detail = `__surface_component__:${component.name}`;
+
       // Always replace the whole tag with the selected item
-      // TODO: can we also replace the closing tag? Maybe with `{command: ...}`?
-      item.range = document.getWordRangeAtPosition(position);
+      item.range = range;
+      maybeReplaceClosing(item, node, component.alias);
 
       return item;
     });

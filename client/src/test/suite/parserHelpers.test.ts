@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { initParser, toEmbeddedCode, getCursorInfo } from '../../parserHelpers';
+import { Range } from 'vscode';
 
 suite('toEmbeddedCode', () => {
 	test('replace all content outside the tag body with white spaces', async () => {
@@ -100,37 +101,43 @@ suite('getCursorInfo', () => {
 	test('cursor at tag_name - <d|iv>', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<d|iv>`
+			`<d|iv></div>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'tag_name')
 		assert.equal(value, 'div')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 4))
+		assert.deepEqual(closingRange, new Range(0, 7, 0, 10))
 	});
 
 	test('cursor at tag_name - <div| >', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<div| >`
+			`<div| ></div>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'tag_name')
 		assert.equal(value, 'div')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 4))
+		assert.deepEqual(closingRange, new Range(0, 8, 0, 11))
 	});
 
 	test('cursor at tag_name - <div|>', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<div|>`
+			`<div|></div>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'tag_name')
 		assert.equal(value, 'div')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 4))
+		assert.deepEqual(closingRange, new Range(0, 7, 0, 10))
 	});
 
 	// attribute_name
@@ -178,37 +185,43 @@ suite('getCursorInfo', () => {
 	test('cursor at component_name - <For|m>', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<For|m>`
+			`<For|m></Form>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'component_name')
 		assert.equal(value, 'Form')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 5))
+		assert.deepEqual(closingRange, new Range(0, 8, 0, 12))
 	});
 
 	test('cursor at component_name - <Form|>', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<Form|>`
+			`<Form|></Form>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'component_name')
 		assert.equal(value, 'Form')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 5))
+		assert.deepEqual(closingRange, new Range(0, 8, 0, 12))
 	});
 
 	test('cursor at component_name - <Form| >', async () => {
 		const parser = await getParser();
 		const {code, offset} = codeWithCursor(
-			`<Form| >`
+			`<Form| ></Form>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
+		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'component_name')
 		assert.equal(value, 'Form')
 		assert.equal(lang, 'surface')
+		assert.deepEqual(range, new Range(0, 1, 0, 5))
+		assert.deepEqual(closingRange, new Range(0, 9, 0, 13))
 	});
 
 	// tag_attributes

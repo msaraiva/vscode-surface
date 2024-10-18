@@ -82,7 +82,7 @@ export const provideDefinition = async (document: TextDocument, position: Positi
   if (node.lang == 'surface' && node.scope == 'expression') {
     // Get the content of the related .ex file
     const relatedExFileUri = document.uri.path.split('.').slice(0, -1).join('.') + '.ex';
-    const relatedExFileBuffer = await workspace.fs.readFile(Uri.parse(relatedExFileUri))
+    const relatedExFileBuffer = await workspace.fs.readFile(Uri.parse(relatedExFileUri));
     const relatedExFileContent = new TextDecoder('utf-8').decode(relatedExFileBuffer);
 
     // Inject/append the surface code into the elixir code as a fake function

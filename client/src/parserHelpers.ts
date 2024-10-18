@@ -1,5 +1,5 @@
 import { trace } from "console";
-import { ExtensionContext, TextDocument, Uri } from "vscode";
+import { ExtensionContext, Location, Position, Range, TextDocument, Uri } from "vscode";
 import * as fs from 'fs';
 import Parser = require("web-tree-sitter")
 
@@ -27,6 +27,18 @@ export const extractElixirAliases = (document: TextDocument) => {
 
 	return aliases;
 };
+
+export const asPoint = (position: Position): Parser.Point => {
+  return { row: position.line, column: position.character };
+}
+
+export const asPosition = (point: Parser.Point): Position => {
+  return new Position(point.row, point.column);
+}
+
+export const asRange = (start: Parser.Point, end: Parser.Point): Range => {
+  return new Range(asPosition(start), asPosition(end));
+}
 
 const getRootTag = (node: Parser.SyntaxNode): Parser.SyntaxNode | null => {
   let lastTag = null;
@@ -104,37 +116,51 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
 
   // <d|iv>
   if (node.type == 'tag_name') {
+    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('tag_name')[0];
+
     return {
       lang: 'surface',
       scope: 'tag_name',
       value: node.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(node.startPosition, node.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 
   // <div| >
   if (node.type == 'start_tag' && node.descendantsOfType('tag_name')[0].endIndex == offset) {
+    const nameNode = node.descendantsOfType('tag_name')[0];
+    const closingNameNode = nameNode.parent.parent.lastChild.descendantsOfType('tag_name')[0];
+
     return {
       lang: 'surface',
       scope: 'tag_name',
-      value: node.descendantsOfType('tag_name')[0].text,
+      value: nameNode.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(nameNode.startPosition, nameNode.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 
   // <div|>
   if (node.type == '>' && node.previousSibling.type == 'tag_name' && node.previousSibling.endIndex == node.startIndex) {
+    const nameNode = node.previousSibling;
+    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('tag_name')[0];
+
     return {
       lang: 'surface',
       scope: 'tag_name',
-      value: node.previousSibling.text,
+      value: nameNode.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(nameNode.startPosition, nameNode.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 
@@ -191,37 +217,51 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
 
   // <For|m>
   if (node.type == 'component_name') {
+    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('component_name')[0];
+
     return {
       lang: 'surface',
       scope: 'component_name',
       value: node.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(node.startPosition, node.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 
   // <Form|>
   if (node.type == '>' && node.previousSibling.type == 'component_name' && node.previousSibling.endIndex == node.startIndex) {
+    const nameNode = node.previousSibling;
+    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('component_name')[0];
+
     return {
       lang: 'surface',
       scope: 'component_name',
-      value: node.previousSibling.text,
+      value: nameNode.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(nameNode.startPosition, nameNode.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 
   // <Form| >
   if (node.type == 'start_component' && node.descendantsOfType('component_name')[0].endIndex == offset) {
+    const nameNode = node.descendantsOfType('component_name')[0];
+    const closingNameNode = nameNode.parent.parent.lastChild.descendantsOfType('component_name')[0];
+
     return {
       lang: 'surface',
       scope: 'component_name',
-      value: node.descendantsOfType('component_name')[0].text,
+      value: nameNode.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
-      parent: node.parent.toString()
+      parent: node.parent.toString(),
+      range: asRange(nameNode.startPosition, nameNode.endPosition),
+      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
     };
   }
 

@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { ExtensionContext, workspace, TextDocument, TextDocumentChangeEvent, Position, TextDocumentContentChangeEvent } from 'vscode';
-import { initParser, extractElixirAliases } from './parserHelpers';
+import { ExtensionContext, workspace, TextDocument, Position, TextDocumentContentChangeEvent, commands, window, WorkspaceEdit, Range, Uri } from 'vscode';
+import { asPoint, initParser, extractElixirAliases } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -83,10 +83,6 @@ export async function activate(extensionContext: ExtensionContext) {
     }
 
     return parser.parse(document.getText(), tree);
-  }
-
-  const asPoint = (position: Position): Parser.Point => {
-    return { row: position.line, column: position.character };
   }
 
   //TODO: clean up tree and friends
