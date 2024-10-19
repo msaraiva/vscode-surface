@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent } from 'vscode';
-import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile } from './parserHelpers';
+import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine } from 'vscode';
+import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -72,6 +72,20 @@ export async function activate(extensionContext: ExtensionContext) {
     }
 	});
 
+	commands.registerCommand('surface.insertModuleAlias', async (file: string, position: Position, module: string) => {
+		const uri = Uri.parse(file);
+		const textdocument = await workspace.openTextDocument(uri);
+		const leftPadding = ' '.repeat(textdocument.lineAt(position.line).firstNonWhitespaceCharacterIndex);
+		const edit = new WorkspaceEdit();
+		const newLine = (textdocument.eol == EndOfLine.CRLF) ? '\r\n' : `\n`;
+		// const wasDirty = textdocument.isDirty;
+		edit.insert(uri, position, `${newLine}${leftPadding}alias ${module}`);
+		workspace.applyEdit(edit);
+		// if (!wasDirty) {
+		// 	workspace.save(uri);
+		// }
+	});
+
   const updateTree = (document: TextDocument, contentChanges: readonly TextDocumentContentChangeEvent[]) => {
 	  if (!tree) return tree;
 
@@ -118,6 +132,7 @@ export async function activate(extensionContext: ExtensionContext) {
 
 				return provideCompletionItem(document, position, token, context, {
 					tree: getTree(document),
+					elixirTree: elixirTree,
 					aliases: aliases,
 					virtualDocumentContents: virtualDocumentContents
 				})

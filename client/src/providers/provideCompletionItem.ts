@@ -1,11 +1,12 @@
 import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
-import { getCursorInfo, toEmbeddedCode } from '../parserHelpers';
+import { getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');
 
 interface Context {
   tree: Parser.Tree;
+  elixirTree: Parser.Tree;
   aliases: Object;
   virtualDocumentContents: Map<string, string>;
 }
@@ -23,6 +24,7 @@ const maybeReplaceClosing = (item: CompletionItem, node, replaceText: string) =>
 
 export const provideCompletionItem = async (document: TextDocument, position: Position, _token: CancellationToken, completionContext: CompletionContext, context: Context): Promise<CompletionList<CompletionItem> | CompletionItem[]> => {
   const tree = context.tree;
+  const elixirTree = context.elixirTree;
   const node = getCursorInfo(tree, document.offsetAt(position))
   const originalUri = document.uri.toString(true);
   const aliases = context.aliases;
@@ -78,6 +80,18 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
       // Always replace the whole tag with the selected item
       item.range = range;
       maybeReplaceClosing(item, node, component.alias);
+
+      if (!aliases[component.alias]) {
+        item.command = {
+          command: 'surface.insertModuleAlias',
+          title: 'Insert module alias',
+          arguments: [
+            getRelatedExFilePath(document.uri),
+            getInsertAliasPosition(elixirTree.rootNode),
+            component.name
+          ]
+        }
+      }
 
       return item;
     });

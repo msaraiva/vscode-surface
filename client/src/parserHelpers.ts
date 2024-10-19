@@ -10,6 +10,14 @@ const isAlias = (node: Parser.SyntaxNode): boolean => {
   return (node.type == 'call' && node.firstChild.type == 'identifier' && node.firstChild.text == 'alias');
 }
 
+const isImport = (node: Parser.SyntaxNode): boolean => {
+  return (node.type == 'call' && node.firstChild.type == 'identifier' && node.firstChild.text == 'import');
+}
+
+const isUse = (node: Parser.SyntaxNode): boolean => {
+  return (node.type == 'call' && node.firstChild.type == 'identifier' && node.firstChild.text == 'use');
+}
+
 const extractAliases = (node: Parser.SyntaxNode): Object => {
   const subModules = node.firstChild.nextSibling?.children[0]?.children[2]?.namedChildren;
   const asModule = node.firstChild.nextSibling?.children[2]?.children[0]?.children[0]?.text == 'as: ';
@@ -41,9 +49,50 @@ export const extractElixirModuleAliases = (node: Parser.SyntaxNode) => {
   return aliases;
 }
 
-export const readRelatedExFile = (uri: Uri) => {
+export const getLastModuleAliasPosition = (node: Parser.SyntaxNode): Position | undefined => {
+  const children = findFirstModuleChildren(node);
+  let pos = undefined;
+  for (let child of children) {
+    if (isAlias(child)) {
+      pos = asPosition(child.endPosition);
+    }
+  }
+  return pos;
+}
+
+export const getLastModuleImportPosition = (node: Parser.SyntaxNode): Position | undefined => {
+  const children = findFirstModuleChildren(node);
+  let pos = undefined;
+  for (let child of children) {
+    if (isImport(child)) {
+      pos = asPosition(child.endPosition);
+    }
+  }
+  return pos;
+}
+
+export const getLastModuleUsePosition = (node: Parser.SyntaxNode): Position | undefined => {
+  const children = findFirstModuleChildren(node);
+  let pos = undefined;
+  for (let child of children) {
+    if (isUse(child)) {
+      pos = asPosition(child.endPosition);
+    }
+  }
+  return pos;
+}
+
+export const getInsertAliasPosition = (node: Parser.SyntaxNode): Position | undefined => {
+  return getLastModuleAliasPosition(node) || getLastModuleImportPosition(node) || getLastModuleUsePosition(node);
+}
+
+export const getRelatedExFilePath = (uri: Uri): string => {
 	const baseName = uri.path.slice(1).split('.').slice(0, -1).join('.');
-	const exFile = baseName + '.ex';
+	return baseName + '.ex';
+}
+
+export const readRelatedExFile = (uri: Uri) => {
+	const exFile = getRelatedExFilePath(uri)
 
 	// TODO: use `workspace.fs` instead of `fs`.
   // See: https://code.visualstudio.com/updates/v1_37#_vscodeworkspacefs
