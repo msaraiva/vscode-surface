@@ -1,31 +1,59 @@
-import { trace } from "console";
-import { ExtensionContext, Location, Position, Range, TextDocument, Uri } from "vscode";
+import { Position, Range, Uri } from "vscode";
 import * as fs from 'fs';
 import Parser = require("web-tree-sitter")
 
-// TODO: handle `alias x as y` and `alias a.{b, c}`
-// TODO: try to use tree-sitter-elixir instead
-export const extractElixirAliases = (document: TextDocument) => {
-	const baseName = document.uri.path.slice(1).split('.').slice(0, -1).join('.');
+const findFirstModuleChildren = (node: Parser.SyntaxNode) => {
+  return node.children[0]?.lastChild?.children || [];
+}
+
+const isAlias = (node: Parser.SyntaxNode): boolean => {
+  return (node.type == 'call' && node.firstChild.type == 'identifier' && node.firstChild.text == 'alias');
+}
+
+const extractAliases = (node: Parser.SyntaxNode): Object => {
+  const subModules = node.firstChild.nextSibling?.children[0]?.children[2]?.namedChildren;
+  const asModule = node.firstChild.nextSibling?.children[2]?.children[0]?.children[0]?.text == 'as: ';
+
+  const aliases = {};
+
+  if (subModules) {
+    for (const modNode of subModules) {
+      aliases[modNode.text] = node.firstChild.nextSibling.children[0].children[0].text + '.' + modNode.text;
+    }
+  } else if (asModule) {
+    const alias = node.firstChild.nextSibling.children[2].children[0].children[1].text;
+    aliases[alias] = node.firstChild.nextSibling.children[0].text;
+  } else {
+    const module = node.firstChild.nextSibling.text;
+    aliases[module.split('.').pop()] = module;
+  }
+  return aliases;
+}
+
+export const extractElixirModuleAliases = (node: Parser.SyntaxNode) => {
+  const children = findFirstModuleChildren(node);
+  const aliases = {};
+  for (let child of children) {
+    if (isAlias(child)) {
+      Object.assign(aliases, extractAliases(child));
+    }
+  }
+  return aliases;
+}
+
+export const readRelatedExFile = (uri: Uri) => {
+	const baseName = uri.path.slice(1).split('.').slice(0, -1).join('.');
 	const exFile = baseName + '.ex';
-	const aliases = {};
 
 	// TODO: use `workspace.fs` instead of `fs`.
   // See: https://code.visualstudio.com/updates/v1_37#_vscodeworkspacefs
 	if (fs.existsSync(exFile)) {
 		try {
-			const exContent = fs.readFileSync(exFile).toString();
-			const matches = [...exContent.matchAll(/^\s*alias\s*([A-Z][a-zA-Z_\d\.]+)$/gm)];
-
-			for (const match of matches) {
-				aliases[match[1].split('.').pop()] = match[1];
-			}
+			return fs.readFileSync(exFile).toString();
 		} catch (e) {
 			console.error(e);
 		}
 	}
-
-	return aliases;
 };
 
 export const asPoint = (position: Position): Parser.Point => {
@@ -70,14 +98,14 @@ const getFirstParentTagOrComponent = (node: Parser.SyntaxNode) => {
   return node;
 }
 
-export const initParser = async (extensionUri: Uri) => {
+export const initParser = async (extensionUri: Uri, lang: string) => {
 	await Parser.init();
-	const wasmUri = Uri.joinPath(extensionUri, "./resources/tree-sitter-surface.wasm").fsPath;
-	const Surface = await Parser.Language.load(wasmUri);
-	const surfaceParser = new Parser();
-	surfaceParser.setLanguage(Surface);
+	const wasmUri = Uri.joinPath(extensionUri, `./resources/tree-sitter-${lang}.wasm`).fsPath;
+	const language = await Parser.Language.load(wasmUri);
+	const parser = new Parser();
+	parser.setLanguage(language);
 
-  return surfaceParser;
+  return parser;
 }
 
 export const toEmbeddedCode = (tree: Parser.Tree, code: string, tagName: string) => {

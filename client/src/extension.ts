@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { ExtensionContext, workspace, TextDocument, Position, TextDocumentContentChangeEvent, commands, window, WorkspaceEdit, Range, Uri } from 'vscode';
-import { asPoint, initParser, extractElixirAliases } from './parserHelpers';
+import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent } from 'vscode';
+import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -23,6 +23,7 @@ let lastDocumentKey: string;
 let lastDocumentVersion: number;
 let parser: Parser;
 let tree: Parser.Tree;
+let elixirParser: Parser;
 
 const getTree = (document: TextDocument): Parser.Tree => {
 	if (document.uri.toString() != lastDocumentKey || document.version != lastDocumentVersion) {
@@ -48,7 +49,10 @@ export async function activate(extensionContext: ExtensionContext) {
 	};
 
 	// The Surface parser
-	parser = await initParser(extensionContext.extensionUri)
+	parser = await initParser(extensionContext.extensionUri, 'surface')
+
+	// The Elixir parser
+	elixirParser = await initParser(extensionContext.extensionUri, 'elixir')
 
 	// Storage for embedded content
 	const virtualDocumentContents = new Map<string, string>();
@@ -64,7 +68,6 @@ export async function activate(extensionContext: ExtensionContext) {
 
   workspace.onDidChangeTextDocument(({ document, contentChanges }) => {
     if (document.uri.toString() == lastDocumentKey) {
-      console.log('contentChanges', contentChanges);
       tree = updateTree(document, contentChanges);
     }
 	});
@@ -97,8 +100,9 @@ export async function activate(extensionContext: ExtensionContext) {
 		],
 		middleware: {
 			provideDefinition: async (document, position, token, _next) => {
-				// TODO: watch the .ex file and update the value when it changes
-				const aliases = extractElixirAliases(document)
+				// TODO: watch the .ex file and update the tree when it changes
+				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
+				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
 
 				return provideDefinition(document, position, token, {
 					tree: getTree(document),
@@ -108,8 +112,9 @@ export async function activate(extensionContext: ExtensionContext) {
 				});
 			},
 			provideCompletionItem: async (document, position, context, token, _next) => {
-				// TODO: watch the .ex file and update the value when it changes
-				const aliases = extractElixirAliases(document)
+				// TODO: watch the .ex file and update the tree when it changes
+				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
+				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
 
 				return provideCompletionItem(document, position, token, context, {
 					tree: getTree(document),
@@ -118,8 +123,9 @@ export async function activate(extensionContext: ExtensionContext) {
 				})
 			},
 			provideHover: async (document, position, token, _next) => {
-				// TODO: watch the .ex file and update the value when it changes
-				const aliases = extractElixirAliases(document)
+				// TODO: watch the .ex file and update the tree when it changes
+				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
+				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
 
 				return provideHover(document, position, token, {
 					tree: getTree(document),

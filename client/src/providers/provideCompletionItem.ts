@@ -1,5 +1,5 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, Range, workspace, Uri } from 'vscode';
-import { asRange, getCursorInfo, toEmbeddedCode } from '../parserHelpers';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
+import { getCursorInfo, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');

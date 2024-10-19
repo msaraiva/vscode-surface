@@ -1,11 +1,46 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { initParser, toEmbeddedCode, getCursorInfo } from '../../parserHelpers';
+import { initParser, toEmbeddedCode, getCursorInfo, extractElixirModuleAliases } from '../../parserHelpers';
 import { Range } from 'vscode';
+
+suite('extractElixirModuleAliases', () => {
+	test('extract all aliases from elixir code', async () => {
+		const parser = await getParser('elixir');
+
+		const code =`
+		defmodule TestModule do
+  		use Surface.Component
+
+			defmodule MyInnerModule do
+				alias Surface.Components.ShouldNotBeListed
+			end
+
+  		alias Surface.Components.Form
+  		alias Surface.Components.Field
+  		alias Surface.Components.Form.ColorInput, as: MyColorInput
+  		alias Surface.Components.Form.{TextInput, Checkbox}
+
+			def func do
+				alias Surface.Components.ShouldNotBeListed
+			end
+		end
+		`;
+
+		const aliases = extractElixirModuleAliases(parser.parse(code).rootNode)
+
+		assert.deepEqual(aliases, {
+      "Checkbox": "Surface.Components.Form.Checkbox",
+      "Field": "Surface.Components.Field",
+      "Form": "Surface.Components.Form",
+      "MyColorInput": "Surface.Components.Form.ColorInput",
+      "TextInput": "Surface.Components.Form.TextInput"
+    });
+	});
+});
 
 suite('toEmbeddedCode', () => {
 	test('replace all content outside the tag body with white spaces', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 
 		const code = [
 			'1',
@@ -51,7 +86,7 @@ suite('getCursorInfo', () => {
 	// lang css
 
 	test('cursor at CSS - inside <style>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 		<style>
 			|.a {}
@@ -62,7 +97,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at CSS - <style>|</style>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<style>|</style>
 		`);
@@ -74,7 +109,7 @@ suite('getCursorInfo', () => {
 	// lang javascript
 
 	test('cursor at JS - inside <script>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 		<script>
 			if (true) {
@@ -87,7 +122,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at JS - <script>|</script>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<script>|</script>
 		`);
@@ -99,7 +134,7 @@ suite('getCursorInfo', () => {
 	// tag_name
 
 	test('cursor at tag_name - <d|iv>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<d|iv></div>`
 		);
@@ -113,7 +148,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_name - <div| >', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div| ></div>`
 		);
@@ -127,7 +162,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_name - <div|>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div|></div>`
 		);
@@ -143,7 +178,7 @@ suite('getCursorInfo', () => {
 	// attribute_name
 
 	test('cursor at attribute_name - <div cla|ss>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div cla|ss>`
 		);
@@ -157,7 +192,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at attribute_name - <div class|>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div class|>`
 		);
@@ -169,7 +204,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at attribute_name - <div class| >', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div class| >`
 		);
@@ -183,7 +218,7 @@ suite('getCursorInfo', () => {
 	// component_name
 
 	test('cursor at component_name - <For|m>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<For|m></Form>`
 		);
@@ -197,7 +232,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at component_name - <Form|>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<Form|></Form>`
 		);
@@ -211,7 +246,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at component_name - <Form| >', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<Form| ></Form>`
 		);
@@ -227,7 +262,7 @@ suite('getCursorInfo', () => {
 	// tag_attributes
 
 	test('cursor at tag_attributes - <div | >', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div | >`
 		);
@@ -239,7 +274,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_attributes - <div |>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<div |>`
 		);
@@ -251,7 +286,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at component_attibutes - <Form | >', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<Form | >`
 		);
@@ -263,7 +298,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at component_attibutes - <Form |>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
 			`<Form |>`
 		);
@@ -277,7 +312,7 @@ suite('getCursorInfo', () => {
 	// tag_body
 
 	test('cursor at tag_body', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				|
@@ -293,7 +328,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				|
@@ -309,7 +344,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - before tag', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				|<span></span>
@@ -325,7 +360,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - before tag (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				|<span></span>
@@ -341,7 +376,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - after tag', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				<span></span>|
@@ -357,7 +392,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - after tag (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				<span></span>|
@@ -373,7 +408,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, before text', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				|Hello!
@@ -389,7 +424,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, before text (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				|Hello!
@@ -405,7 +440,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, after text', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				Hello!|
@@ -421,7 +456,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, after text (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				Hello!|
@@ -437,7 +472,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, before expression', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				|{@id}
@@ -453,7 +488,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, before expression (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				|{@id}
@@ -469,7 +504,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, after expression', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				{@id}|
@@ -485,7 +520,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body, after expression (component)', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>
 				{@id}|
@@ -501,7 +536,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - <div>|</div>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>|</div>
 			`
@@ -515,7 +550,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at tag_body - <Form>|</Form>', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<Form>|</Form>
 			`
@@ -531,7 +566,7 @@ suite('getCursorInfo', () => {
 	// expression
 
 	test('cursor at expression in body', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				{@us|er}
@@ -546,7 +581,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at expression in atrribute value', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div id={@us|er.id}></div>
 			`
@@ -559,7 +594,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at the beginning of the expression', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				{|@user}
@@ -574,7 +609,7 @@ suite('getCursorInfo', () => {
 	});
 
 	test('cursor at the end of the expression', async () => {
-		const parser = await getParser();
+		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
 				{@user|}
@@ -590,11 +625,11 @@ suite('getCursorInfo', () => {
 
 });
 
-const getParser = async () => {
+const getParser = async (lang) => {
 	// TODO: Try to make this work
 	// const ext = vscode.extensions.getExtension("msaraiva.surface");
 	// return await initParser(ext.uri);
-	return initParser(vscode.Uri.joinPath(vscode.Uri.parse(__dirname), '../../../../'))
+	return initParser(vscode.Uri.joinPath(vscode.Uri.parse(__dirname), '../../../../'), lang)
 }
 
 const codeWithCursor = (code: string) => {
