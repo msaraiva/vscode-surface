@@ -85,11 +85,7 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
         item.command = {
           command: 'surface.insertModuleAlias',
           title: 'Insert module alias',
-          arguments: [
-            getRelatedExFilePath(document.uri),
-            getInsertAliasPosition(elixirTree.rootNode),
-            component.name
-          ]
+          arguments: [document.uri.fsPath, component.name]
         }
       }
 

@@ -18,6 +18,27 @@ export interface ComponentSpec {
 }
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
+export const findComponentsForAlias = (documentUri: Uri, alias: string): Array<string> => {
+	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components.json')
+	let components = [];
+	if (fs.existsSync(components_file)) {
+		try {
+			components = JSON.parse(fs.readFileSync(components_file).toString());
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	const modules = [];
+	for (const component of components) {
+		if (component.alias == alias) {
+			modules.push(component.name);
+		}
+	}
+	return modules;
+};
+
+// TODO: instead of reading the file many times, watch for changes, and reload it
 export const getComponents = (documentUri: Uri) => {
 	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components.json')
 	let components = [];

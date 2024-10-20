@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine } from 'vscode';
-import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition } from './parserHelpers';
+import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine, languages, CodeActionKind, CodeActionProvider } from 'vscode';
+import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition, getRelatedExFilePath } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -13,6 +13,7 @@ import {
 } from 'vscode-languageclient/node';
 
 import Parser = require('web-tree-sitter');
+import { provideCodeActions } from './providers/provideCodeAction';
 
 let client: LanguageClient;
 
@@ -72,18 +73,27 @@ export async function activate(extensionContext: ExtensionContext) {
     }
 	});
 
-	commands.registerCommand('surface.insertModuleAlias', async (file: string, position: Position, module: string) => {
-		const uri = Uri.parse(file);
-		const textdocument = await workspace.openTextDocument(uri);
+	commands.registerCommand('surface.test', async (arg: any) => {
+		window.showInformationMessage('message: ' + JSON.stringify(arg));
+	});
+
+	commands.registerCommand('surface.insertModuleAlias', async (file: string, module: string) => {
+		const sfaceFileUri = Uri.parse(file);
+		const exFile = getRelatedExFilePath(sfaceFileUri);
+		const elixirTree = elixirParser.parse(readRelatedExFile(sfaceFileUri));
+		const position = getInsertAliasPosition(elixirTree.rootNode);
+
+		const exFileUri = Uri.parse(exFile);
+		const textdocument = await workspace.openTextDocument(exFileUri);
 		const leftPadding = ' '.repeat(textdocument.lineAt(position.line).firstNonWhitespaceCharacterIndex);
 		const edit = new WorkspaceEdit();
 		const newLine = (textdocument.eol == EndOfLine.CRLF) ? '\r\n' : `\n`;
-		// const wasDirty = textdocument.isDirty;
-		edit.insert(uri, position, `${newLine}${leftPadding}alias ${module}`);
+		const wasDirty = textdocument.isDirty;
+		edit.insert(exFileUri, position, `${newLine}${leftPadding}alias ${module}`);
 		workspace.applyEdit(edit);
-		// if (!wasDirty) {
-		// 	workspace.save(uri);
-		// }
+		if (!wasDirty) {
+			workspace.save(exFileUri);
+		}
 	});
 
   const updateTree = (document: TextDocument, contentChanges: readonly TextDocumentContentChangeEvent[]) => {
@@ -101,6 +111,17 @@ export async function activate(extensionContext: ExtensionContext) {
 
     return parser.parse(document.getText(), tree);
   }
+
+	extensionContext.subscriptions.push(
+		languages.registerCodeActionsProvider({ language: 'surface', scheme: 'file' }, new (class implements CodeActionProvider {
+			provideCodeActions(document, range, context, token) {
+				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
+				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
+
+				return provideCodeActions(document, range, context, token, {aliases: aliases});
+			}
+		}), { providedCodeActionKinds: [CodeActionKind.QuickFix] })
+	);
 
   //TODO: clean up tree and friends
   // workspace.onDidCloseTextDocument((document) => {
