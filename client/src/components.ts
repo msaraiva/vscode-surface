@@ -10,11 +10,23 @@ export interface PropSpec {
 	line: number;
 }
 
+export interface AttrSpec {
+  name: string;
+  type: string;
+  opts: string;
+  doc: string;
+  line: number;
+  required: boolean;
+}
+
 export interface ComponentSpec {
   // TODO: rename to `doc`
+	module: string,
+	type: 'surface' | 'def' | 'defp',
   docs: string;
-  props: Array<PropSpec>;
 	source: string;
+  props?: Array<PropSpec>;
+  attrs?: Array<AttrSpec>;
 }
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
@@ -39,7 +51,7 @@ export const findComponentsForAlias = (documentUri: Uri, alias: string): Array<s
 };
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
-export const getComponents = (documentUri: Uri) => {
+export const getComponents = (documentUri: Uri): Array<{alias: string, name: string}> => {
 	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components.json')
 	let components = [];
 	if (fs.existsSync(components_file)) {

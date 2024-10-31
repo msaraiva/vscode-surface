@@ -1,5 +1,5 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
-import { getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, toEmbeddedCode } from '../parserHelpers';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, Range } from 'vscode';
+import { asRange, getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');
@@ -58,7 +58,7 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
   if (node.lang == 'surface' && (node.scope == 'tag_body') || node.scope == 'tag_name' || node.scope == 'component_name') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = getComponents(document.uri);
-    const range = document.getWordRangeAtPosition(position);
+    const range = document.getWordRangeAtPosition(position, /[a-zA-Z\.][a-zA-Z\._\d]*/);
 
     // TODO: don't do this if it's a complex snippet/range?
     htmlItems.items = htmlItems.items.map(item => {
@@ -66,24 +66,37 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
       item.range = range;
       if (typeof item.label == 'string') {
         maybeReplaceClosing(item, node, item.label);
+        item.sortText = 'c-' + item.label;
       }
       return item;
     });
 
     const surfaceItems = components.map(component => {
-      const item = new CompletionItem({
-        label: component.alias,
-        description: component.name}, CompletionItemKind.Class
-      );
+      const type = component.alias.startsWith('.') ? 'def' : 'surface';
+      let description: string, kind: CompletionItemKind, sortText: string;
+
+      if (type == 'surface') {
+        description = component.name;
+        kind = CompletionItemKind.Class;
+        sortText = 'a-' + component.alias;
+      } else {
+        description = component.name + '/1';
+        kind = CompletionItemKind.Function;
+        sortText = 'b-' + component.alias;
+      }
+
+      const item = new CompletionItem({label: component.alias, description: description}, kind);
+
       item.detail = `__surface_component__:${component.name}`;
+      item.sortText = sortText;
 
       // Always replace the whole tag with the selected item
       item.range = range;
       maybeReplaceClosing(item, node, component.alias);
 
-      if (!aliases[component.alias]) {
+      if (type == 'surface' && !aliases[component.alias]) {
         item.command = {
-          command: 'surface.insertModuleAlias',
+          command: 'surface.addAlias',
           title: 'Insert module alias',
           arguments: [document.uri.fsPath, component.name]
         }
@@ -102,7 +115,7 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
 
     if (component) {
       const spec = getComponentSpecByName(component, document.uri);
-      if (spec) {
+      if (spec && spec.type == 'surface') {
         const items = spec.props.map(prop => {
           const kind = prop.type == 'event' ? CompletionItemKind.Event : CompletionItemKind.Field;
           // const item = new CompletionItem({label: prop.name, detail: `, ${prop.opts}`, description: `:${prop.type}`}, kind);
@@ -112,6 +125,19 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
           const item = new CompletionItem({label: prop.name, detail: ` :${prop.type}`, description: description}, kind);
           item.detail = `prop :${prop.name}, ${prop.opts}`
           item.documentation = prop.doc;
+          item.range = document.getWordRangeAtPosition(position);
+          item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
+          return item;
+        });
+        return items;
+      } else if (spec && spec.type == 'def' || spec.type == 'defp') {
+        const items = spec.attrs.map(attr => {
+          const kind = CompletionItemKind.Field;
+          const isRequired = attr.required;
+          const description = isRequired ? 'required attr' : 'attr';
+          const item = new CompletionItem({label: attr.name, detail: ` :${attr.type}`, description: description}, kind);
+          item.detail = `attr ${attr.name}, ${attr.type}`
+          item.documentation = attr.doc;
           item.range = document.getWordRangeAtPosition(position);
           item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
           return item;

@@ -72,8 +72,11 @@ const resolveComponentCompletion = (item: CompletionItem) => {
 		const spec = getComponentSpecByName(component, workspaceFolder);
 		if (spec) {
 			const alias = component.split('.').pop();
-			item.detail = `Surface component <${alias}/>`;
-			if (spec.docs) {
+			if (spec.type == 'surface' && spec.docs) {
+				item.detail = `Surface component <${alias}/>`;
+				item.documentation = {kind: MarkupKind.Markdown, value: spec.docs};
+			} else {
+				item.detail = `Phoenix component <.${alias}/>`;
 				item.documentation = {kind: MarkupKind.Markdown, value: spec.docs};
 			}
 		}

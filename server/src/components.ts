@@ -8,10 +8,21 @@ export interface PropSpec {
   doc: string;
 }
 
+export interface AttrSpec {
+  name: string;
+  type: string;
+  opts: string;
+  doc: string;
+  line: number;
+  required: boolean;
+}
+
 export interface ComponentSpec {
   // TODO: rename to `doc`
   docs: string;
-  props: Array<PropSpec>;
+  type: 'surface' | 'def' | 'defp',
+  props?: Array<PropSpec>;
+  attrs?: Array<AttrSpec>;
 }
 
 // TODO: instead of reading the file many times, watch for changes, and reload it

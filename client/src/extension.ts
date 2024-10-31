@@ -77,7 +77,7 @@ export async function activate(extensionContext: ExtensionContext) {
 		window.showInformationMessage('message: ' + JSON.stringify(arg));
 	});
 
-	commands.registerCommand('surface.insertModuleAlias', async (file: string, module: string) => {
+	commands.registerCommand('surface.addAlias', async (file: string, module: string) => {
 		const sfaceFileUri = Uri.parse(file);
 		const exFile = getRelatedExFilePath(sfaceFileUri);
 		const elixirTree = elixirParser.parse(readRelatedExFile(sfaceFileUri));
