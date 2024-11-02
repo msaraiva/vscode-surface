@@ -6,6 +6,11 @@ const findFirstModuleChildren = (node: Parser.SyntaxNode) => {
   return node.children[0]?.lastChild?.children || [];
 }
 
+export const resolveAlias = (component: string, codeAliases: Object, compiledAliases: Object) => {
+  const [alias, ...rest] = component.split('.');
+  return [(codeAliases[alias] || compiledAliases[alias] || alias)].concat(rest).join('.');
+}
+
 export const findFirstModule = (node: Parser.SyntaxNode) => {
   return node.children[0]?.descendantsOfType('alias')[0]?.text;
 }

@@ -1,7 +1,8 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
-import { getCursorInfo, toEmbeddedCode } from '../parserHelpers';
+import { asRange, getCursorInfo, resolveAlias, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName } from '../components';
 import Parser = require('web-tree-sitter');
+import path = require('path');
 
 interface Context {
   tree: Parser.Tree;
@@ -122,12 +123,20 @@ export const provideDefinition = async (document: TextDocument, position: Positi
 
   // Click on component's name
 
-	if (node.scope == 'component_name') {
-    const component = aliases[node.value];
+  if (node.scope == 'component_name' || node.scope == 'macro_component_name') {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const compiledAliases = moduleSpec?.aliases || {};
+    const component = resolveAlias(node.value, aliases, compiledAliases);
+
 		const spec = getComponentSpecByName(component, document.uri);
 		if (spec) {
-      const uri = Uri.joinPath(workspaceFolder, spec.source);
-			return {uri: uri, range: new Range(0, 0, 0, 0)};
+      let uri: Uri;
+      if (path.isAbsolute(spec.source)) {
+        uri = Uri.parse(spec.source);
+      } else {
+        uri = Uri.joinPath(workspaceFolder, spec.source);
+      }
+			return [{originSelectionRange: node.range, targetUri: uri, targetRange: new Range(0, 0, 0, 0)}];
 		}
 	}
 

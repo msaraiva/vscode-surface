@@ -29,6 +29,7 @@ export interface ComponentSpec {
   props?: Array<PropSpec>;
   attrs?: Array<AttrSpec>;
   imports?: Object;
+  aliases?: Object;
 }
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
