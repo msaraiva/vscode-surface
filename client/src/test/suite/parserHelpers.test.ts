@@ -328,6 +328,18 @@ suite('getCursorInfo', () => {
 		assert.equal(lang, 'surface')
 	});
 
+  test('cursor at attribute_name - <div class|="">', async () => {
+    const parser = await getParser('surface');
+    const { code, offset } = codeWithCursor(
+      `<div class|="">`
+    );
+
+    const { lang, scope, value } = getCursorInfo(parser.parse(code), offset);
+    assert.equal(scope, 'attribute_name')
+    assert.equal(value, 'class')
+    assert.equal(lang, 'surface')
+  });
+
 	// component_name
 
 	test('cursor at component_name - <For|m>', async () => {
@@ -725,14 +737,14 @@ suite('getCursorInfo', () => {
 		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(`
 			<div>
-				{@user|}
+				{@user + {} |}
 			</div>
 			`
 		);
 
 		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
 		assert.equal(scope, 'expression')
-		assert.equal(value, '@user')
+		assert.equal(value, '@user + {} ')
 		assert.equal(lang, 'surface')
 	});
 

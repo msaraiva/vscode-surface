@@ -5,6 +5,7 @@ import Parser = require('web-tree-sitter');
 
 interface Context {
   tree: Parser.Tree;
+  module: string;
   aliases: Object;
   virtualDocumentContents: Map<string, string>;
   workspaceFolder: Uri
@@ -56,9 +57,10 @@ export const provideDefinition = async (document: TextDocument, position: Positi
   const tree = context.tree;
   const node = getCursorInfo(tree, document.offsetAt(position))
   const aliases = context.aliases;
+  const module = context.module;
   const workspaceFolder = context.workspaceFolder;
 
-  console.debug('provideDefinition for node:', JSON.stringify(node, null, 2));
+  // console.log('provideDefinition for node:', JSON.stringify(node, null, 2));
 
   // Inside <script> (Javascript)
 
@@ -118,7 +120,7 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     return [];
   }
 
-  // Click on component (tag) name
+  // Click on component's name
 
 	if (node.scope == 'component_name') {
     const component = aliases[node.value];
@@ -128,6 +130,19 @@ export const provideDefinition = async (document: TextDocument, position: Positi
 			return {uri: uri, range: new Range(0, 0, 0, 0)};
 		}
 	}
+
+  // Click on function component's name
+
+  if (node.scope == 'function_component_name' && node.value?.startsWith('.')) {
+    const func = node.value.slice(1);
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const spec = getComponentSpecByName(moduleSpec?.imports[func], document.uri);
+
+    if (spec) {
+      const uri = Uri.joinPath(workspaceFolder, spec.source);
+      return { uri: uri, range: new Range(spec.line - 1, 0, spec.line - 1, 0) };
+    }
+  }
 
   // Click on component prop name
 

@@ -6,6 +6,10 @@ const findFirstModuleChildren = (node: Parser.SyntaxNode) => {
   return node.children[0]?.lastChild?.children || [];
 }
 
+export const findFirstModule = (node: Parser.SyntaxNode) => {
+  return node.children[0]?.descendantsOfType('alias')[0]?.text;
+}
+
 const isAlias = (node: Parser.SyntaxNode): boolean => {
   return (node.type == 'call' && node.firstChild.type == 'identifier' && node.firstChild.text == 'alias');
 }
@@ -130,18 +134,56 @@ const getRootTag = (node: Parser.SyntaxNode): Parser.SyntaxNode | null => {
   return lastTag;
 }
 
-const getFirstParentTagOrComponent = (node: Parser.SyntaxNode) => {
-  if (node.type == '<') {
-    node = node.parent && node.parent.parent && node.parent.parent.parent;
-  } else {
-    node = node.parent;
-  }
+const closestParentOfType = (node: Parser.SyntaxNode, types: string | Array<String>) => {
+  if (typeof types === 'string') types = [types];
 
   while (node) {
-    if (node.type == 'tag' || node.type == 'component') {
-      return node;
+    if (node.parent && types.indexOf(node.parent.type) > -1) {
+      return node.parent;
     }
     node = node.parent;
+  }
+}
+
+const isNodeTagOrComponent = (node: Parser.SyntaxNode) => {
+  return ['tag_name', 'component_name', 'function_component_name', 'macro_component_name'].indexOf(node.type) > -1;
+}
+
+const isNodeStartTagOrComponent = (node: Parser.SyntaxNode) => {
+  return ['start_tag', 'start_component', 'start_function_component', 'start_macro_component'].indexOf(node.type) > -1;
+}
+
+/*
+  This function handles cases where we need the node right before
+  the offset instead of the one right after the offset (the default).
+*/
+const nodeOnCursor = (tree: Parser.Tree, offset: number) => {
+  const node = tree.rootNode.descendantForIndex(offset);
+
+  // `<div>|<span>`
+  if (node.type == '<') {
+    return node?.parent?.parent?.parent;
+  }
+
+  // `<div>|</div>`
+  if (node.type == '</' || node.type == '{') {
+    return node?.parent?.parent;
+  }
+
+  // {@user + {} |}
+  if (node.type == '}') {
+    return node.previousSibling;
+  }
+
+  // `<div attr|=` OR `{... |}` OR `|{...}`
+  const nodeAtPreviousIndex = tree.rootNode.descendantForIndex(offset - 1);
+  if (nodeAtPreviousIndex && nodeAtPreviousIndex.id != node.id && nodeAtPreviousIndex.type.endsWith('_name')) {
+    return nodeAtPreviousIndex;
+  }
+
+  // `<div|>` OR `<div attr|>`
+  if (node.type == '>') {
+    return node.parent;
   }
 
   return node;
@@ -179,25 +221,28 @@ export const toEmbeddedCode = (tree: Parser.Tree, code: string, tagName: string)
 }
 
 export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
-  let node = tree.rootNode.descendantForIndex(offset);
-  // console.log('Tree:', tree.rootNode.toString())
+  const node = nodeOnCursor(tree, offset);
 
-  // TODO: missing types to handle: end_component,
-  // self_closing_component, self_closing_tag, `|=`, `=|`, `|<`, `|</`, `>|`,
-  // and constructs (blocks)
+  // TODO: missing types to handle:
+  // * ouside any tag (at the root node), e.g. `|<div>` or `</div>|`
+  // * `self_closing_component`,
+  // * `self_closing_tag`
+  // * `=|`
+  // constructs (blocks)
 
   // TODO: handle when node is ERROR (syntax issues), for instance, when the tag is not closed:
   // <span |
 
-  /* tag_name */
+  /* tag_name, component_name */
 
-  // <d|iv>
-  if (node.type == 'tag_name') {
-    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('tag_name')[0];
+  if (isNodeTagOrComponent(node)) {
+    const type = node.type.split('_name')[0];
+    const typeName = `${type}_name`;
+    const closingNameNode = closestParentOfType(node, ['tag', 'component']).lastChild.descendantsOfType(typeName)[0];
 
     return {
       lang: 'surface',
-      scope: 'tag_name',
+      scope: typeName,
       value: node.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
@@ -207,43 +252,8 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
     };
   }
 
-  // <div| >
-  if (node.type == 'start_tag' && node.descendantsOfType('tag_name')[0].endIndex == offset) {
-    const nameNode = node.descendantsOfType('tag_name')[0];
-    const closingNameNode = nameNode.parent.parent.lastChild.descendantsOfType('tag_name')[0];
-
-    return {
-      lang: 'surface',
-      scope: 'tag_name',
-      value: nameNode.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(nameNode.startPosition, nameNode.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
-  }
-
-  // <div|>
-  if (node.type == '>' && node.previousSibling.type == 'tag_name' && node.previousSibling.endIndex == node.startIndex) {
-    const nameNode = node.previousSibling;
-    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('tag_name')[0];
-
-    return {
-      lang: 'surface',
-      scope: 'tag_name',
-      value: nameNode.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(nameNode.startPosition, nameNode.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
-  }
-
   /* attribute_name */
 
-  // <div cla|ss>
   if (node.type == 'attribute_name') {
     const startTagNode = node.parent.parent;
     const tagNameNode = startTagNode.firstChild.nextSibling;
@@ -266,128 +276,17 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
     };
   }
 
-  // <div class|>
-  if (node.type == '>' && node.previousSibling.type == 'attribute' && node.previousSibling.lastChild.type == 'attribute_name' && node.previousSibling.lastChild.endIndex == node.startIndex) {
-    return {
-      lang: 'surface',
-      scope: 'attribute_name',
-      value: node.previousSibling.lastChild.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
+  /* tag_attibutes, component_attibutes */
 
-  // <div class| >
-  if (node.type == 'start_tag' && node.firstChildForIndex(offset - 1).type == 'attribute' && node.firstChildForIndex(offset - 1).lastChild.type == 'attribute_name') {
-    return {
-      lang: 'surface',
-      scope: 'attribute_name',
-      value: node.firstChildForIndex(offset - 1).lastChild.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  /* component_name */
-
-  // <For|m>
-  if (node.type == 'component_name') {
-    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('component_name')[0];
+  if (isNodeStartTagOrComponent(node)) {
+    const type = node.type.split('start_')[1];
+    const typeName = `${type}_name`;
+    const typeAttributes = `${type}_attributes`;
 
     return {
       lang: 'surface',
-      scope: 'component_name',
-      value: node.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(node.startPosition, node.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
-  }
-
-  // <Form|>
-  if (node.type == '>' && node.previousSibling.type == 'component_name' && node.previousSibling.endIndex == node.startIndex) {
-    const nameNode = node.previousSibling;
-    const closingNameNode = node.parent.parent.lastChild.descendantsOfType('component_name')[0];
-
-    return {
-      lang: 'surface',
-      scope: 'component_name',
-      value: nameNode.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(nameNode.startPosition, nameNode.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
-  }
-
-  // <Form| >
-  if (node.type == 'start_component' && node.descendantsOfType('component_name')[0].endIndex == offset) {
-    const nameNode = node.descendantsOfType('component_name')[0];
-    const closingNameNode = nameNode.parent.parent.lastChild.descendantsOfType('component_name')[0];
-
-    return {
-      lang: 'surface',
-      scope: 'component_name',
-      value: nameNode.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(nameNode.startPosition, nameNode.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
-  }
-
-  /* tag_attibutes */
-
-  // <div | >
-  if (node.type == 'start_tag') {
-    return {
-      lang: 'surface',
-      scope: 'tag_attributes',
-      tag: node.parent.descendantsOfType('tag_name')[0].text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  // <div |>
-  if (node.type == '>' && node.previousSibling.endIndex < node.startIndex && node.parent.type == 'start_tag') {
-    return {
-      lang: 'surface',
-      scope: 'tag_attributes',
-      tag: node.parent.descendantsOfType('tag_name')[0].text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  /* component_attibutes */
-
-  // <Form | >
-  if (node.type == 'start_component') {
-    return {
-      lang: 'surface',
-      scope: 'component_attributes',
-      tag: node.parent.descendantsOfType('component_name')[0].text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  // <Form |>
-  if (node.type == '>' && node.previousSibling.endIndex < node.startIndex && node.parent.type == 'start_component') {
-    return {
-      lang: 'surface',
-      scope: 'component_attributes',
-      tag: node.parent.descendantsOfType('component_name')[0].text,
+      scope: typeAttributes,
+      tag: node.parent.descendantsOfType(typeName)[0].text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
       parent: node.parent.toString()
@@ -433,22 +332,6 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
     };
   }
 
-  if (node.type == '<' || node.type == '</' || node.type == '{') {
-    const parentTag = getFirstParentTagOrComponent(node);
-
-    if (parentTag) {
-      return {
-        lang: 'surface',
-        scope: 'tag_body',
-        tag: parentTag.descendantsOfType(`${parentTag.type}_name`)[0].text,
-        type: parentTag.type,
-        details: {text: node.text, type: node.type},
-        node: node.toString(),
-        parent: node.parent.toString()
-      };
-    }
-  }
-
   if (node.type == 'text' && node.parent && (node.parent.type == 'tag' || node.parent.type == 'component')) {
     return {
       lang: 'surface',
@@ -468,17 +351,6 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
       lang: 'surface',
       scope: 'expression',
       value: node.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  if (node.type == '}' && node.parent.type == 'expression') {
-    return {
-      lang: 'surface',
-      scope: 'expression',
-      value: node.previousSibling.text,
       details: {text: node.text, type: node.type},
       node: node.toString(),
       parent: node.parent.toString()

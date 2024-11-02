@@ -22,11 +22,13 @@ export interface AttrSpec {
 export interface ComponentSpec {
   // TODO: rename to `doc`
 	module: string,
+	line?: number,
 	type: 'surface' | 'def' | 'defp',
   docs: string;
 	source: string;
   props?: Array<PropSpec>;
   attrs?: Array<AttrSpec>;
+  imports?: Object;
 }
 
 // TODO: instead of reading the file many times, watch for changes, and reload it

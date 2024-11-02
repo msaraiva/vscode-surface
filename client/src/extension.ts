@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine, languages, CodeActionKind, CodeActionProvider } from 'vscode';
-import { asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition, getRelatedExFilePath } from './parserHelpers';
+import { findFirstModule, asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition, getRelatedExFilePath } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -138,9 +138,11 @@ export async function activate(extensionContext: ExtensionContext) {
 				// TODO: watch the .ex file and update the tree when it changes
 				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
 				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
+				const module = findFirstModule(elixirTree.rootNode);
 
 				return provideDefinition(document, position, token, {
 					tree: getTree(document),
+					module: module,
 					aliases: aliases,
 					virtualDocumentContents: virtualDocumentContents,
 					workspaceFolder: workspace.getWorkspaceFolder(document.uri).uri
