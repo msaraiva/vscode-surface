@@ -1,5 +1,5 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
-import { asRange, getCursorInfo, resolveAlias, toEmbeddedCode } from '../parserHelpers';
+import { asRange, getCursorInfo, resolveAlias, resolveComponent, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName } from '../components';
 import Parser = require('web-tree-sitter');
 import path = require('path');
@@ -52,6 +52,14 @@ const getLineOffsets = (content: string) => {
   if (isLineStart && text.length > 0)
       offsets.push(text.length);
   return offsets;
+}
+
+const sourceToUri = (source: string, workspaceFolder: Uri): Uri => {
+  if (path.isAbsolute(source)) {
+    return Uri.parse(source);
+  } else {
+    return Uri.joinPath(workspaceFolder, source);
+  }
 }
 
 export const provideDefinition = async (document: TextDocument, position: Position, _token: CancellationToken, context: Context): Promise<Definition | DefinitionLink[]> => {
@@ -125,43 +133,42 @@ export const provideDefinition = async (document: TextDocument, position: Positi
 
   if (node.scope == 'component_name' || node.scope == 'macro_component_name') {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const compiledAliases = moduleSpec?.aliases || {};
-    const component = resolveAlias(node.value, aliases, compiledAliases);
-
+    const component = resolveAlias(node.value, aliases, moduleSpec?.aliases);
 		const spec = getComponentSpecByName(component, document.uri);
+
 		if (spec) {
-      let uri: Uri;
-      if (path.isAbsolute(spec.source)) {
-        uri = Uri.parse(spec.source);
-      } else {
-        uri = Uri.joinPath(workspaceFolder, spec.source);
-      }
+      const uri = sourceToUri(spec.source, workspaceFolder);
 			return [{originSelectionRange: node.range, targetUri: uri, targetRange: new Range(0, 0, 0, 0)}];
 		}
 	}
 
   // Click on function component's name
 
-  if (node.scope == 'function_component_name' && node.value?.startsWith('.')) {
-    const func = node.value.slice(1);
+  if (node.scope == 'function_component_name') {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const spec = getComponentSpecByName(moduleSpec?.imports[func], document.uri);
+    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
+    const spec = getComponentSpecByName(component, document.uri);
 
     if (spec) {
-      const uri = Uri.joinPath(workspaceFolder, spec.source);
-      return { uri: uri, range: new Range(spec.line - 1, 0, spec.line - 1, 0) };
+      const uri = sourceToUri(spec.source, workspaceFolder);
+			return [{originSelectionRange: node.range, targetUri: uri, targetRange: new Range(spec.line - 1, 0, spec.line - 1, 0)}];
     }
   }
 
   // Click on component prop name
 
-	if (node.scope == 'attribute_name' && node.type == 'component') {
-    const component = aliases[node.tag];
+	if (node.scope == 'attribute_name') {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const component = resolveComponent(node.tag, aliases, moduleSpec?.aliases, moduleSpec.imports);
 		const spec = getComponentSpecByName(component, document.uri);
-		const prop = spec.props.find(prop => prop.name == node.value);
-		if (spec && prop) {
-      const uri = Uri.joinPath(workspaceFolder, spec.source);
-			return {uri: uri, range: new Range(prop.line - 1, 0, prop.line, 0)};
-		}
+
+    if (spec && node.type != 'tag') {
+      const attrs = spec.attrs || spec.props;
+      const attr = attrs.find(attr => attr.name == node.value);
+      if (spec && attr) {
+        const uri = Uri.joinPath(workspaceFolder, spec.source);
+        return {uri: uri, range: new Range(attr.line - 1, 0, attr.line, 0)};
+      }
+    }
 	}
 };

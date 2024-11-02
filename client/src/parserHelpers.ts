@@ -7,8 +7,20 @@ const findFirstModuleChildren = (node: Parser.SyntaxNode) => {
 }
 
 export const resolveAlias = (component: string, codeAliases: Object, compiledAliases: Object) => {
+  compiledAliases = compiledAliases || {};
   const [alias, ...rest] = component.split('.');
   return [(codeAliases[alias] || compiledAliases[alias] || alias)].concat(rest).join('.');
+}
+
+export const resolveComponent = (component: string, codeAliases: Object, compiledAliases: Object, compiledImports: Object) => {
+  compiledImports = compiledImports || {};
+
+  if (component.startsWith('.')) {
+    const func = component.slice(1);
+    return compiledImports[func];
+  } else {
+    return resolveAlias(component, codeAliases, compiledAliases);
+  }
 }
 
 export const findFirstModule = (node: Parser.SyntaxNode) => {
@@ -262,12 +274,7 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
   if (node.type == 'attribute_name') {
     const startTagNode = node.parent.parent;
     const tagNameNode = startTagNode.firstChild.nextSibling;
-
-    // handles tags with syntax ERROR, like in `<div |>`, which don't define a `tag` node
-    let type = 'tag';
-    if (tagNameNode.type == 'component_name') {
-      type = 'component';
-    }
+    const type = tagNameNode.type.split('_name')[0];
 
     return {
       lang: 'surface',

@@ -27,6 +27,8 @@ export interface ComponentSpec {
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
 const readComponentByName = (workspaceFolder: string) => {
+  // TODO: Try to read ElixirLS's folder first (`.elixir_ls/build/test/definitions/`),
+  // if it's not available, try this one.
 	const components_file = path.join(workspaceFolder, '_build/dev/definitions/components_by_name.json')
 
 	if (fs.existsSync(components_file)) {

@@ -34,6 +34,8 @@ export interface ComponentSpec {
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
 export const findComponentsForAlias = (documentUri: Uri, alias: string): Array<string> => {
+  // TODO: Try to read ElixirLS's folder first (`.elixir_ls/build/test/definitions/`),
+  // if it's not available, try this one.
 	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components.json')
 	let components = [];
 	if (fs.existsSync(components_file)) {
@@ -55,6 +57,8 @@ export const findComponentsForAlias = (documentUri: Uri, alias: string): Array<s
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
 export const getComponents = (documentUri: Uri): Array<{alias: string, name: string}> => {
+  // TODO: Try to read ElixirLS's folder first (`.elixir_ls/build/test/definitions/`),
+  // if it's not available, try this one.
 	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components.json')
 	let components = [];
 	if (fs.existsSync(components_file)) {
@@ -69,6 +73,8 @@ export const getComponents = (documentUri: Uri): Array<{alias: string, name: str
 
 // TODO: instead of reading the file many times, watch for changes, and reload it
 const readComponentByName = (documentUri: Uri) => {
+  // TODO: Try to read ElixirLS's folder first (`.elixir_ls/build/test/definitions/`),
+  // if it's not available, try this one.
 	const components_file = path.join(workspace.getWorkspaceFolder(documentUri).uri.fsPath, '_build/dev/definitions/components_by_name.json')
 
 	if (fs.existsSync(components_file)) {
