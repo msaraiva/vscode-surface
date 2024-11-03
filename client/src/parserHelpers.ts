@@ -170,6 +170,18 @@ const isNodeStartTagOrComponent = (node: Parser.SyntaxNode) => {
   return ['start_tag', 'start_component', 'start_function_component', 'start_macro_component'].indexOf(node.type) > -1;
 }
 
+const isSelfClosing = (node: Parser.SyntaxNode) => {
+  return ['self_closing_tag', 'self_closing_component', 'self_closing_function_component', 'self_closing_macro_component'].includes(node.type);
+}
+
+export const isComponentAttributes = (name: string) => {
+  return ['component_attributes', 'function_component_attributes', 'macro_component_attributes'].includes(name);
+}
+
+export const isComponent = (name: string) => {
+  return ['component', 'function_component', 'macro_component'].includes(name);
+}
+
 /*
   This function handles cases where we need the node right before
   the offset instead of the one right after the offset (the default).
@@ -198,8 +210,8 @@ const nodeOnCursor = (tree: Parser.Tree, offset: number) => {
     return nodeAtPreviousIndex;
   }
 
-  // `<div|>` OR `<div attr|>`
-  if (node.type == '>') {
+  // `<div|>` OR `<div attr|>` OR `<.link |/>`
+  if (node.type == '>' || node.type == '/>') {
     return node.parent;
   }
 
@@ -292,6 +304,21 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
 
   if (isNodeStartTagOrComponent(node)) {
     const type = node.type.split('start_')[1];
+    const typeName = `${type}_name`;
+    const typeAttributes = `${type}_attributes`;
+
+    return {
+      lang: 'surface',
+      scope: typeAttributes,
+      tag: node.parent.descendantsOfType(typeName)[0].text,
+      details: {text: node.text, type: node.type},
+      node: node.toString(),
+      parent: node.parent.toString()
+    };
+  }
+
+  if (isSelfClosing(node)) {
+    const type = node.type.split('self_closing_')[1];
     const typeName = `${type}_name`;
     const typeAttributes = `${type}_attributes`;
 

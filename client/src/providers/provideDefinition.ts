@@ -155,7 +155,7 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     }
   }
 
-  // Click on component prop name
+  // Click on component's prop name
 
 	if (node.scope == 'attribute_name') {
     const moduleSpec = getComponentSpecByName(module, document.uri);
@@ -165,7 +165,7 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     if (spec && node.type != 'tag') {
       const attrs = spec.attrs || spec.props;
       const attr = attrs.find(attr => attr.name == node.value);
-      if (spec && attr) {
+      if (attr) {
         const uri = Uri.joinPath(workspaceFolder, spec.source);
         return {uri: uri, range: new Range(attr.line - 1, 0, attr.line, 0)};
       }

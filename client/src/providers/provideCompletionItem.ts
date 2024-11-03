@@ -1,5 +1,5 @@
 import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, Range } from 'vscode';
-import { asRange, getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, toEmbeddedCode } from '../parserHelpers';
+import { asRange, getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, isComponent, isComponentAttributes, resolveComponent, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');
@@ -8,6 +8,7 @@ interface Context {
   tree: Parser.Tree;
   elixirTree: Parser.Tree;
   aliases: Object;
+  module: string,
   virtualDocumentContents: Map<string, string>;
 }
 
@@ -28,6 +29,7 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
   const node = getCursorInfo(tree, document.offsetAt(position))
   const originalUri = document.uri.toString(true);
   const aliases = context.aliases;
+  const module = context.module;
   const virtualDocumentContents = context.virtualDocumentContents;
 
   console.debug('provideCompletionItem for node:', JSON.stringify(node, null, 2));
@@ -110,11 +112,19 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
 
   // Inside component head (Surface)
 
-  if (node.lang == 'surface' && (node.scope == 'component_attributes' || (node.scope == 'attribute_name' && node.type == 'component'))) {
-    const component = aliases[node.tag];
+  // TODO: simplify this condition. Suggestions:
+  // * Add properties to `node`, e.g. `node.isComponent`, `node.isFunctionComponent`, `node.isModuleComponent`, etc.
+  // * Rename all '*_attributes' into just `attributes` and then add a propertty, `parentTag` to both, `attributes` and `attribute_name`
+  // so we can handle the conditions:
+  //   Example: if (node.scope == 'attibutes' && node.parentTag.isComponent)
+  if (node.lang == 'surface' && (isComponentAttributes(node.scope) || (node.scope == 'attribute_name' && isComponent(node.type)))) {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    // TODO: rename `node.tag` to `node.alias` or `node.tagAlias`, `node.name`?
+    const component = resolveComponent(node.tag, aliases, moduleSpec.aliases, moduleSpec.imports);
 
     if (component) {
       const spec = getComponentSpecByName(component, document.uri);
+      // TODO: Rename spec.type's "surface" value to "defmodule" to make it consistent with "defp" and "def"?
       if (spec && spec.type == 'surface') {
         const items = spec.props.map(prop => {
           const kind = prop.type == 'event' ? CompletionItemKind.Event : CompletionItemKind.Field;
