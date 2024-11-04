@@ -73,10 +73,6 @@ export async function activate(extensionContext: ExtensionContext) {
     }
 	});
 
-	commands.registerCommand('surface.test', async (arg: any) => {
-		window.showInformationMessage('message: ' + JSON.stringify(arg));
-	});
-
 	commands.registerCommand('surface.addAlias', async (file: string, module: string) => {
 		const sfaceFileUri = Uri.parse(file);
 		const exFile = getRelatedExFilePath(sfaceFileUri);

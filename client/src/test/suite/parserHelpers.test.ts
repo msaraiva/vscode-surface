@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { initParser, toEmbeddedCode, getCursorInfo, extractElixirModuleAliases, getLastModuleAliasPosition, getLastModuleImportPosition, getLastModuleUsePosition, getInsertAliasPosition } from '../../parserHelpers';
+import { initParser, toEmbeddedCode, getCursorInfo, extractElixirModuleAliases, getLastModuleAliasPosition, getLastModuleImportPosition, getLastModuleUsePosition, getInsertAliasPosition, EmbeddedContent, TagName, AttributeName, InsertAttributes, TagBody, Expression } from '../../parserHelpers';
 import { Position, Range } from 'vscode';
 
 suite('extractElixirModuleAliases', () => {
@@ -205,7 +205,7 @@ suite('getCursorInfo', () => {
 			|.a {}
 		</style>`);
 
-		const {lang} = getCursorInfo(parser.parse(code), offset);
+		const {lang} = getCursorInfo(parser.parse(code), offset) as EmbeddedContent;
 		assert.equal(lang, 'css')
 	});
 
@@ -215,7 +215,7 @@ suite('getCursorInfo', () => {
 			<style>|</style>
 		`);
 
-		const {lang} = getCursorInfo(parser.parse(code), offset);
+		const {lang} = getCursorInfo(parser.parse(code), offset) as EmbeddedContent;
 		assert.equal(lang, 'css')
 	});
 
@@ -230,7 +230,7 @@ suite('getCursorInfo', () => {
 			}
 		</script>`);
 
-		const {lang} = getCursorInfo(parser.parse(code), offset);
+		const {lang} = getCursorInfo(parser.parse(code), offset) as EmbeddedContent;
 		assert.equal(lang, 'javascript')
 	});
 
@@ -240,7 +240,7 @@ suite('getCursorInfo', () => {
 			<script>|</script>
 		`);
 
-		const {lang} = getCursorInfo(parser.parse(code), offset);
+		const {lang} = getCursorInfo(parser.parse(code), offset) as EmbeddedContent;
 		assert.equal(lang, 'javascript')
 	});
 
@@ -252,12 +252,12 @@ suite('getCursorInfo', () => {
 			`<d|iv></div>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
+		assert.equal(parentTag.kind, 'tag')
 		assert.equal(value, 'div')
-		assert.equal(lang, 'surface')
 		assert.deepEqual(range, new Range(0, 1, 0, 4))
-		assert.deepEqual(closingRange, new Range(0, 7, 0, 10))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 7, 0, 10))
 	});
 
 	test('cursor at tag_name - <div| >', async () => {
@@ -266,12 +266,12 @@ suite('getCursorInfo', () => {
 			`<div| ></div>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
 		assert.equal(value, 'div')
-		assert.equal(lang, 'surface')
+    assert.equal(parentTag.kind, 'tag')
 		assert.deepEqual(range, new Range(0, 1, 0, 4))
-		assert.deepEqual(closingRange, new Range(0, 8, 0, 11))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 8, 0, 11))
 	});
 
 	test('cursor at tag_name - <div|>', async () => {
@@ -280,12 +280,30 @@ suite('getCursorInfo', () => {
 			`<div|></div>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
 		assert.equal(value, 'div')
-		assert.equal(lang, 'surface')
+    assert.equal(parentTag.kind, 'tag')
+    assert.equal(parentTag.isSelfClosing, false)
 		assert.deepEqual(range, new Range(0, 1, 0, 4))
-		assert.deepEqual(closingRange, new Range(0, 7, 0, 10))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 7, 0, 10))
+	});
+
+	// tag_name (self closing)
+
+	test('cursor at self closing tag_name - <d|iv/>', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<d|iv/>`
+		);
+
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
+		assert.equal(parentTag.kind, 'tag')
+		assert.equal(value, 'div')
+		assert.deepEqual(range, new Range(0, 1, 0, 4))
+		assert.equal(parentTag.isSelfClosing, true)
+		assert.equal(parentTag.closingTagName, undefined)
 	});
 
 	// attribute_name
@@ -296,12 +314,11 @@ suite('getCursorInfo', () => {
 			`<div cla|ss>`
 		);
 
-		const {lang, scope, value, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'attribute_name')
+		const {type, value, parentAttribute} = getCursorInfo(parser.parse(code), offset) as AttributeName;
+		assert.equal(type, 'AttributeName')
 		assert.equal(value, 'class')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		assert.equal(parentAttribute.parentTag.type, 'Tag')
+		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
 	});
 
 	test('cursor at attribute_name - <div class|>', async () => {
@@ -310,10 +327,11 @@ suite('getCursorInfo', () => {
 			`<div class|>`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'attribute_name')
+		const {type, value, parentAttribute} = getCursorInfo(parser.parse(code), offset) as AttributeName;
+		assert.equal(type, 'AttributeName')
 		assert.equal(value, 'class')
-		assert.equal(lang, 'surface')
+		assert.equal(parentAttribute.parentTag.type, 'Tag')
+		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
 	});
 
 	test('cursor at attribute_name - <div class| >', async () => {
@@ -322,10 +340,11 @@ suite('getCursorInfo', () => {
 			`<div class| >`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'attribute_name')
+		const {type, value, parentAttribute} = getCursorInfo(parser.parse(code), offset) as AttributeName;
+		assert.equal(type, 'AttributeName')
 		assert.equal(value, 'class')
-		assert.equal(lang, 'surface')
+		assert.equal(parentAttribute.parentTag.type, 'Tag')
+		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
 	});
 
   test('cursor at attribute_name - <div class|="">', async () => {
@@ -334,10 +353,11 @@ suite('getCursorInfo', () => {
       `<div class|="">`
     );
 
-    const { lang, scope, value } = getCursorInfo(parser.parse(code), offset);
-    assert.equal(scope, 'attribute_name')
-    assert.equal(value, 'class')
-    assert.equal(lang, 'surface')
+		const {type, value, parentAttribute} = getCursorInfo(parser.parse(code), offset) as AttributeName;
+		assert.equal(type, 'AttributeName')
+		assert.equal(value, 'class')
+		assert.equal(parentAttribute.parentTag.kind, 'tag')
+		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
   });
 
 	// component_name
@@ -348,12 +368,29 @@ suite('getCursorInfo', () => {
 			`<For|m></Form>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'component_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
 		assert.equal(value, 'Form')
-		assert.equal(lang, 'surface')
+    assert.equal(parentTag.kind, 'component')
 		assert.deepEqual(range, new Range(0, 1, 0, 5))
-		assert.deepEqual(closingRange, new Range(0, 8, 0, 12))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 8, 0, 12))
+	});
+
+	// component_name (self closing)
+
+	test('cursor at self closing component_name - <For|m>', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<For|m/>`
+		);
+
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
+		assert.equal(value, 'Form')
+    assert.equal(parentTag.kind, 'component')
+		assert.deepEqual(range, new Range(0, 1, 0, 5))
+		assert.equal(parentTag.isSelfClosing, true)
+		assert.equal(parentTag.closingTagName, undefined)
 	});
 
 	test('cursor at component_name - <Form|>', async () => {
@@ -362,12 +399,12 @@ suite('getCursorInfo', () => {
 			`<Form|></Form>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'component_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
 		assert.equal(value, 'Form')
-		assert.equal(lang, 'surface')
+    assert.equal(parentTag.kind, 'component')
 		assert.deepEqual(range, new Range(0, 1, 0, 5))
-		assert.deepEqual(closingRange, new Range(0, 8, 0, 12))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 8, 0, 12))
 	});
 
 	test('cursor at component_name - <Form| >', async () => {
@@ -376,12 +413,12 @@ suite('getCursorInfo', () => {
 			`<Form| ></Form>`
 		);
 
-		const {lang, scope, value, range, closingRange} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'component_name')
+		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
 		assert.equal(value, 'Form')
-		assert.equal(lang, 'surface')
+    assert.equal(parentTag.kind, 'component')
 		assert.deepEqual(range, new Range(0, 1, 0, 5))
-		assert.deepEqual(closingRange, new Range(0, 9, 0, 13))
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 9, 0, 13))
 	});
 
 	// tag_attributes
@@ -392,10 +429,10 @@ suite('getCursorInfo', () => {
 			`<div | >`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_attributes')
-		assert.equal(tag, 'div')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_attributes - <div |>', async () => {
@@ -404,10 +441,22 @@ suite('getCursorInfo', () => {
 			`<div |>`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_attributes')
-		assert.equal(tag, 'div')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
+	});
+
+	test('cursor at self closing tag_attributes - <div |>', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<div |/>`
+		);
+
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at component_attibutes - <Form | >', async () => {
@@ -416,10 +465,22 @@ suite('getCursorInfo', () => {
 			`<Form | >`
 		);
 
-		const {lang, scope, tag} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'component_attributes')
-		assert.equal(tag, 'Form')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+    assert.equal(parentTag.kind, 'component')
+	});
+
+	test('cursor at self closing component_attibutes - <Form | >', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<Form | />`
+		);
+
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+    assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at component_attibutes - <Form |>', async () => {
@@ -428,10 +489,10 @@ suite('getCursorInfo', () => {
 			`<Form |>`
 		);
 
-		const {lang, scope, tag} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'component_attributes')
-		assert.equal(tag, 'Form')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as InsertAttributes;
+		assert.equal(type, 'InsertAttributes')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+    assert.equal(parentTag.kind, 'component')
 	});
 
 	// tag_body
@@ -445,11 +506,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body (component)', async () => {
@@ -461,11 +521,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body - before tag', async () => {
@@ -477,11 +536,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body - before tag (component)', async () => {
@@ -493,11 +551,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body - after tag', async () => {
@@ -509,11 +566,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body - after tag (component)', async () => {
@@ -525,11 +581,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body, before text', async () => {
@@ -541,11 +596,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body, before text (component)', async () => {
@@ -557,11 +611,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body, after text', async () => {
@@ -573,11 +626,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body, after text (component)', async () => {
@@ -589,11 +641,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+    const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body, before expression', async () => {
@@ -605,11 +656,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body, before expression (component)', async () => {
@@ -621,11 +671,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body, after expression', async () => {
@@ -637,11 +686,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
 	});
 
 	test('cursor at tag_body, after expression (component)', async () => {
@@ -653,11 +701,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	test('cursor at tag_body - <div>|</div>', async () => {
@@ -667,11 +714,11 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'div')
-		assert.equal(type, 'tag')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'div')
+		assert.equal(parentTag.kind, 'tag')
+
 	});
 
 	test('cursor at tag_body - <Form>|</Form>', async () => {
@@ -681,11 +728,10 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, tag, type} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'tag_body')
-		assert.equal(tag, 'Form')
-		assert.equal(type, 'component')
-		assert.equal(lang, 'surface')
+		const {type, parentTag} = getCursorInfo(parser.parse(code), offset) as TagBody;
+		assert.equal(type, 'TagBody')
+		assert.equal(parentTag.openingTagName.value, 'Form')
+		assert.equal(parentTag.kind, 'component')
 	});
 
 	// expression
@@ -699,10 +745,9 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'expression')
+		const {type, value} = getCursorInfo(parser.parse(code), offset) as Expression;
+		assert.equal(type, 'Expression')
 		assert.equal(value, '@user')
-		assert.equal(lang, 'surface')
 	});
 
 	test('cursor at expression in atrribute value', async () => {
@@ -712,10 +757,9 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'expression')
+		const {type, value} = getCursorInfo(parser.parse(code), offset) as Expression;
+		assert.equal(type, 'Expression')
 		assert.equal(value, '@user.id')
-		assert.equal(lang, 'surface')
 	});
 
 	test('cursor at the beginning of the expression', async () => {
@@ -727,10 +771,9 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'expression')
+		const {type, value} = getCursorInfo(parser.parse(code), offset) as Expression;
+		assert.equal(type, 'Expression')
 		assert.equal(value, '@user')
-		assert.equal(lang, 'surface')
 	});
 
 	test('cursor at the end of the expression', async () => {
@@ -742,10 +785,9 @@ suite('getCursorInfo', () => {
 			`
 		);
 
-		const {lang, scope, value} = getCursorInfo(parser.parse(code), offset);
-		assert.equal(scope, 'expression')
+		const {type, value} = getCursorInfo(parser.parse(code), offset) as Expression;
+		assert.equal(type, 'Expression')
 		assert.equal(value, '@user + {} ')
-		assert.equal(lang, 'surface')
 	});
 
 });

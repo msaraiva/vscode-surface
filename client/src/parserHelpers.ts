@@ -6,7 +6,7 @@ const findFirstModuleChildren = (node: Parser.SyntaxNode) => {
   return node.children[0]?.lastChild?.children || [];
 }
 
-export const resolveAlias = (component: string, codeAliases: Object, compiledAliases: Object) => {
+const resolveAlias = (component: string, codeAliases: Object, compiledAliases: Object) => {
   compiledAliases = compiledAliases || {};
   const [alias, ...rest] = component.split('.');
   return [(codeAliases[alias] || compiledAliases[alias] || alias)].concat(rest).join('.');
@@ -162,24 +162,32 @@ const closestParentOfType = (node: Parser.SyntaxNode, types: string | Array<Stri
   }
 }
 
-const isNodeTagOrComponent = (node: Parser.SyntaxNode) => {
-  return ['tag_name', 'component_name', 'function_component_name', 'macro_component_name'].indexOf(node.type) > -1;
+const isNodeTagOrComponentName = (node: Parser.SyntaxNode) => {
+  return ['tag_name', 'component_name', 'function_component_name', 'macro_component_name'].includes(node.type);
 }
 
 const isNodeStartTagOrComponent = (node: Parser.SyntaxNode) => {
-  return ['start_tag', 'start_component', 'start_function_component', 'start_macro_component'].indexOf(node.type) > -1;
+  return ['start_tag', 'start_component', 'start_function_component', 'start_macro_component'].includes(node.type);
 }
 
 const isSelfClosing = (node: Parser.SyntaxNode) => {
   return ['self_closing_tag', 'self_closing_component', 'self_closing_function_component', 'self_closing_macro_component'].includes(node.type);
 }
 
-export const isComponentAttributes = (name: string) => {
-  return ['component_attributes', 'function_component_attributes', 'macro_component_attributes'].includes(name);
-}
-
 export const isComponent = (name: string) => {
   return ['component', 'function_component', 'macro_component'].includes(name);
+}
+
+export const isSurfaceComponent = (name: string) => {
+  return ['component', 'macro_component'].includes(name);
+}
+
+export const isFunctionComponent = (name: string) => {
+  return name == 'function_component';
+}
+
+export const isHTMLtag = (name: string) => {
+  return name == 'tag';
 }
 
 /*
@@ -218,6 +226,70 @@ const nodeOnCursor = (tree: Parser.Tree, offset: number) => {
   return node;
 }
 
+// TODO: should we change kind to 'html_tag' | 'module_component' | 'function_component' | 'macro_component'?;
+type TagType =
+  'tag'
+  | 'component'
+  | 'function_component'
+  | 'macro_component';
+
+export interface EmbeddedContent {
+  type: 'EmbeddedContent';
+  lang: 'css' | 'javascript';
+}
+
+export interface Tag {
+  type: 'Tag';
+  kind: TagType;
+  isSelfClosing: boolean;
+  openingTagName: TagName;
+  closingTagName?: TagName;
+}
+
+export interface TagName {
+  type: 'TagName';
+  value: string;
+  parentTag: Tag;
+  range: Range;
+}
+
+export interface TagBody {
+  type: 'TagBody';
+  parentTag: Tag;
+}
+
+export interface InsertAttributes {
+  type: 'InsertAttributes';
+  parentTag: Tag;
+}
+
+export interface Attribute {
+  type: 'Attribute'
+  parentTag: Tag;
+  // value: QuotedValue | Expression
+}
+
+export interface AttributeName {
+  type: 'AttributeName';
+  parentAttribute: Attribute;
+  value: string;
+}
+
+export interface Expression {
+  type: 'Expression';
+  value: string;
+  // parent: Attribute | TagBody | Tag
+}
+
+// interface QuotedValue {
+//   type: 'QuotedValue';
+//   value: string;
+// }
+
+export type CursorSurfaceInfo = TagName | AttributeName | InsertAttributes | TagBody | Expression;
+
+export type CursorInfo = EmbeddedContent | CursorSurfaceInfo | undefined;
+
 export const initParser = async (extensionUri: Uri, lang: string) => {
 	await Parser.init();
 	const wasmUri = Uri.joinPath(extensionUri, `./resources/tree-sitter-${lang}.wasm`).fsPath;
@@ -249,137 +321,130 @@ export const toEmbeddedCode = (tree: Parser.Tree, code: string, tagName: string)
   return result.trimEnd();
 }
 
-export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
+export const getCursorInfo = (tree: Parser.Tree, offset: number): CursorInfo => {
   const node = nodeOnCursor(tree, offset);
+  return buildCursorInfo(node)
+}
 
-  // TODO: missing types to handle:
-  // * ouside any tag (at the root node), e.g. `|<div>` or `</div>|`
-  // * `self_closing_component`,
-  // * `self_closing_tag`
-  // * `=|`
-  // constructs (blocks)
+const buildTag = (node: Parser.SyntaxNode): Tag => {
+  let kind: TagType;
+  let isSelfClosing = false;
 
-  // TODO: handle when node is ERROR (syntax issues), for instance, when the tag is not closed:
-  // <span |
-
-  /* tag_name, component_name */
-
-  if (isNodeTagOrComponent(node)) {
-    const type = node.type.split('_name')[0];
-    const typeName = `${type}_name`;
-    const closingNameNode = closestParentOfType(node, ['tag', 'component']).lastChild.descendantsOfType(typeName)[0];
-
-    return {
-      lang: 'surface',
-      scope: typeName,
-      value: node.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString(),
-      range: asRange(node.startPosition, node.endPosition),
-      closingRange: asRange(closingNameNode.startPosition, closingNameNode.endPosition)
-    };
+  if (node.type.startsWith('self_closing_')) {
+    isSelfClosing = true;
+    kind = node.type.split('self_closing_')[1] as TagType;
+  } else if (node.type.startsWith('start_')) {
+    kind = node.type.split('start_')[1] as TagType;
+  } else if (node.type.startsWith('end_')) {
+    kind = node.type.split('end_')[1] as TagType;
+  } else {
+    throw `unexpected node of type ${node.type}`
   }
 
-  /* attribute_name */
+  const tag: Tag = {
+    type: 'Tag',
+    kind: kind,
+    isSelfClosing: isSelfClosing,
+    openingTagName: undefined,
+    closingTagName: undefined
+  }
+
+  const tagName = `${kind}_name`;
+
+  tag.openingTagName = buildTagName(node.parent.firstChild.descendantsOfType(tagName)[0], tag);
+
+  if (!isSelfClosing) {
+    tag.closingTagName = buildTagName(node.parent.lastChild.descendantsOfType(tagName)[0], tag);
+  }
+
+  return tag;
+}
+
+const buildTagName = (node: Parser.SyntaxNode, tag: Tag): TagName => {
+  return {
+    type: 'TagName',
+    value: node.text,
+    range: asRange(node.startPosition, node.endPosition),
+    parentTag: tag,
+  }
+}
+
+const buildCursorInfo = (node: Parser.SyntaxNode): CursorInfo => {
+
+  /* TagName */
+
+  if (isNodeTagOrComponentName(node)) {
+    const tag = buildTag(node.parent);
+    if (node.parent.type.startsWith('end_')) {
+      return tag.closingTagName;
+    } else {
+      return tag.openingTagName;
+    }
+  }
+
+  /* AttributeName */
 
   if (node.type == 'attribute_name') {
-    const startTagNode = node.parent.parent;
-    const tagNameNode = startTagNode.firstChild.nextSibling;
-    const type = tagNameNode.type.split('_name')[0];
+    const tag = buildTag(node.parent.parent);
+    const attibute: Attribute = {
+      type: 'Attribute',
+      parentTag: tag
+    }
 
     return {
-      lang: 'surface',
-      scope: 'attribute_name',
+      type: 'AttributeName',
       value: node.text,
-      tag: tagNameNode.text,
-      type: type,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
+      parentAttribute: attibute
+    } as AttributeName;
   }
 
-  /* tag_attibutes, component_attibutes */
+  /* InsertAttributes */
 
-  if (isNodeStartTagOrComponent(node)) {
-    const type = node.type.split('start_')[1];
-    const typeName = `${type}_name`;
-    const typeAttributes = `${type}_attributes`;
+  if (isNodeStartTagOrComponent(node) || isSelfClosing(node)) {
+    const tag = buildTag(node);
 
     return {
-      lang: 'surface',
-      scope: typeAttributes,
-      tag: node.parent.descendantsOfType(typeName)[0].text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
-    };
-  }
-
-  if (isSelfClosing(node)) {
-    const type = node.type.split('self_closing_')[1];
-    const typeName = `${type}_name`;
-    const typeAttributes = `${type}_attributes`;
-
-    return {
-      lang: 'surface',
-      scope: typeAttributes,
-      tag: node.parent.descendantsOfType(typeName)[0].text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
+      type: 'InsertAttributes',
+      parentTag: tag
     };
   }
 
   const rootTag = getRootTag(node);
   const rootTagName = rootTag && rootTag.descendantsOfType('tag_name')[0].text;
 
-  // anything inside <style>
+  // EmbeddedContent (CSS)
 
   if (rootTagName == 'style') {
     return {
+      type: 'EmbeddedContent',
       lang: 'css',
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
     };
   }
 
-  // anything inside <script>
+  // EmbeddedContent (JavaScript)
 
   if (rootTagName == 'script') {
     return {
+      type: 'EmbeddedContent',
       lang: 'javascript',
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
     };
   }
 
-  // tag_body
+  // TagBody
 
   if (node.type == 'tag' || node.type == 'component') {
+    const tag = buildTag(node.firstNamedChild);
     return {
-      lang: 'surface',
-      scope: 'tag_body',
-      tag: node.descendantsOfType(`${node.type}_name`)[0].text,
-      type: node.type,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
+      type: 'TagBody',
+      parentTag: tag,
     };
   }
 
   if (node.type == 'text' && node.parent && (node.parent.type == 'tag' || node.parent.type == 'component')) {
+    const tag = buildTag(node.parent.firstNamedChild);
     return {
-      lang: 'surface',
-      scope: 'tag_body',
-      tag: node.parent.descendantsOfType(`${node.parent.type}_name`)[0].text,
-      type: node.parent.type,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
+      type: 'TagBody',
+      parentTag: tag
     };
   }
 
@@ -387,21 +452,13 @@ export const getCursorInfo = (tree: Parser.Tree, offset: number) => {
 
   if (node.type == 'expression_value') {
     return {
-      lang: 'surface',
-      scope: 'expression',
+      type: 'Expression',
       value: node.text,
-      details: {text: node.text, type: node.type},
-      node: node.toString(),
-      parent: node.parent.toString()
     };
   }
 
   // anything else
 
-  return {
-    lang: null,
-    details: {text: node.text, type: node.type},
-    node: node.toString(),
-    parent: node.parent && node.parent.toString()
-  }
+  console.log(`unhandled node of type '${node.type}', node: ${node.toString}`)
+  return undefined;
 }

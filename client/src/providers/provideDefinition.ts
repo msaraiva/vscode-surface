@@ -1,5 +1,5 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
-import { asRange, getCursorInfo, resolveAlias, resolveComponent, toEmbeddedCode } from '../parserHelpers';
+import { CursorSurfaceInfo, getCursorInfo, isComponent, isFunctionComponent, isHTMLtag, isSurfaceComponent, resolveComponent, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName } from '../components';
 import Parser = require('web-tree-sitter');
 import path = require('path');
@@ -64,16 +64,14 @@ const sourceToUri = (source: string, workspaceFolder: Uri): Uri => {
 
 export const provideDefinition = async (document: TextDocument, position: Position, _token: CancellationToken, context: Context): Promise<Definition | DefinitionLink[]> => {
   const tree = context.tree;
-  const node = getCursorInfo(tree, document.offsetAt(position))
-  const aliases = context.aliases;
-  const module = context.module;
-  const workspaceFolder = context.workspaceFolder;
+  const node = getCursorInfo(tree, document.offsetAt(position));
+  if (!node) return [];
 
   // console.log('provideDefinition for node:', JSON.stringify(node, null, 2));
 
   // Inside <script> (Javascript)
 
-  if (node.lang == 'javascript') {
+  if (node.type == 'EmbeddedContent' && node.lang == 'javascript') {
     const virtualDocumentContents = context.virtualDocumentContents;
     const originalUri = document.uri.toString(true);
     const jsContent = toEmbeddedCode(tree, document.getText(), 'script');
@@ -88,9 +86,28 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     );
   }
 
-  // Expression inside Surface (Elixir)
+  // Inside <style> (CSS)
 
-  if (node.lang == 'surface' && node.scope == 'expression') {
+  if (node.type == 'EmbeddedContent' && node.lang == 'css') {
+    // TODO
+    return [];
+  }
+
+  // Inside Surface template
+
+  if (node.type != 'EmbeddedContent') {
+    return handleSurfaceNode(node, document, position, context);
+  }
+};
+
+const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument, position: Position, context: Context): Promise<Definition | DefinitionLink[]> => {
+  const aliases = context.aliases;
+  const module = context.module;
+  const workspaceFolder = context.workspaceFolder;
+
+  // Click on expression (Elixir)
+
+  if (node.type == 'Expression') {
     // Get the content of the related .ex file
     const relatedExFileUri = document.uri.path.split('.').slice(0, -1).join('.') + '.ex';
     const relatedExFileBuffer = await workspace.fs.readFile(Uri.parse(relatedExFileUri));
@@ -129,11 +146,11 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     return [];
   }
 
-  // Click on component's name
+  // Click on surface component's name
 
-  if (node.scope == 'component_name' || node.scope == 'macro_component_name') {
+	if (node.type == 'TagName' && isSurfaceComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveAlias(node.value, aliases, moduleSpec?.aliases);
+    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
 		const spec = getComponentSpecByName(component, document.uri);
 
 		if (spec) {
@@ -144,7 +161,7 @@ export const provideDefinition = async (document: TextDocument, position: Positi
 
   // Click on function component's name
 
-  if (node.scope == 'function_component_name') {
+  if (node.type == 'TagName' && isFunctionComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
     const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
     const spec = getComponentSpecByName(component, document.uri);
@@ -155,14 +172,15 @@ export const provideDefinition = async (document: TextDocument, position: Positi
     }
   }
 
-  // Click on component's prop name
+  // Click on any component's prop name
 
-	if (node.scope == 'attribute_name') {
+	if (node.type == 'AttributeName') {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.tag, aliases, moduleSpec?.aliases, moduleSpec.imports);
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const component = resolveComponent(componentAlias, aliases, moduleSpec?.aliases, moduleSpec.imports);
 		const spec = getComponentSpecByName(component, document.uri);
 
-    if (spec && node.type != 'tag') {
+    if (spec && isComponent(node.parentAttribute.parentTag.kind)) {
       const attrs = spec.attrs || spec.props;
       const attr = attrs.find(attr => attr.name == node.value);
       if (attr) {
@@ -171,4 +189,4 @@ export const provideDefinition = async (document: TextDocument, position: Positi
       }
     }
 	}
-};
+}

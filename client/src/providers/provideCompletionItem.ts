@@ -1,5 +1,5 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, Range } from 'vscode';
-import { asRange, getCursorInfo, getInsertAliasPosition, getRelatedExFilePath, isComponent, isComponentAttributes, resolveComponent, toEmbeddedCode } from '../parserHelpers';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
+import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent, resolveComponent, toEmbeddedCode } from '../parserHelpers';
 import { getComponentSpecByName, getComponents } from '../components';
 import { forwardToLanguageService } from '../providerHelpers';
 import Parser = require('web-tree-sitter');
@@ -25,39 +25,47 @@ const maybeReplaceClosing = (item: CompletionItem, node, replaceText: string) =>
 
 export const provideCompletionItem = async (document: TextDocument, position: Position, _token: CancellationToken, completionContext: CompletionContext, context: Context): Promise<CompletionList<CompletionItem> | CompletionItem[]> => {
   const tree = context.tree;
-  const elixirTree = context.elixirTree;
   const node = getCursorInfo(tree, document.offsetAt(position))
+  if (!node) return [];
   const originalUri = document.uri.toString(true);
-  const aliases = context.aliases;
-  const module = context.module;
   const virtualDocumentContents = context.virtualDocumentContents;
 
-  console.debug('provideCompletionItem for node:', JSON.stringify(node, null, 2));
+  // console.debug('provideCompletionItem for node:', JSON.stringify(node, null, 2));
 
   // Inside <style> (CSS)
 
-  if (node.lang == 'css') {
+  if (node.type == 'EmbeddedContent' && node.lang == 'css') {
     const cssContent = toEmbeddedCode(tree, document.getText(), 'style');
     return await forwardToLanguageService('css', originalUri, cssContent, position, completionContext, virtualDocumentContents);
   }
 
   // Inside <script> (Javascript)
 
-  if (node.lang == 'javascript') {
+  if (node.type == 'EmbeddedContent' && node.lang == 'javascript') {
     const jsContent = toEmbeddedCode(tree, document.getText(), 'script');
     return await forwardToLanguageService('js', originalUri, jsContent, position, completionContext, virtualDocumentContents);
   }
 
   // Expression inside Surface (Elixir)
 
-  if (node.lang == 'surface' && node.scope == 'expression') {
+  if (node.type != 'EmbeddedContent'){
+    return handleSurfaceNode(node, originalUri, document, position, completionContext, context);
+  }
+};
+
+const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, document: TextDocument, position: Position, completionContext: CompletionContext, context: Context): Promise<CompletionList<CompletionItem> | CompletionItem[]> => {
+  const aliases = context.aliases;
+  const module = context.module;
+  const virtualDocumentContents = context.virtualDocumentContents;
+
+  if (node.type == 'Expression') {
     // TODO: should use something like `toEmbeddedCode` too?
     return await forwardToLanguageService('ex', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
   }
 
   // Inside tag body (Surface + HTML)
 
-  if (node.lang == 'surface' && (node.scope == 'tag_body') || node.scope == 'tag_name' || node.scope == 'component_name') {
+  if ((node.type == 'TagBody') || node.type == 'TagName') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = getComponents(document.uri);
     const range = document.getWordRangeAtPosition(position, /[a-zA-Z\.][a-zA-Z\._\d]*/);
@@ -110,58 +118,9 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
     return surfaceItems.concat(htmlItems.items);
   }
 
-  // Inside component head (Surface)
+  // Inside HTML tag attributes (list both, Surface and HTML items)
 
-  // TODO: simplify this condition. Suggestions:
-  // * Add properties to `node`, e.g. `node.isComponent`, `node.isFunctionComponent`, `node.isModuleComponent`, etc.
-  // * Rename all '*_attributes' into just `attributes` and then add a propertty, `parentTag` to both, `attributes` and `attribute_name`
-  // so we can handle the conditions:
-  //   Example: if (node.scope == 'attibutes' && node.parentTag.isComponent)
-  if (node.lang == 'surface' && (isComponentAttributes(node.scope) || (node.scope == 'attribute_name' && isComponent(node.type)))) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    // TODO: rename `node.tag` to `node.alias` or `node.tagAlias`, `node.name`?
-    const component = resolveComponent(node.tag, aliases, moduleSpec.aliases, moduleSpec.imports);
-
-    if (component) {
-      const spec = getComponentSpecByName(component, document.uri);
-      // TODO: Rename spec.type's "surface" value to "defmodule" to make it consistent with "defp" and "def"?
-      if (spec && spec.type == 'surface') {
-        const items = spec.props.map(prop => {
-          const kind = prop.type == 'event' ? CompletionItemKind.Event : CompletionItemKind.Field;
-          // const item = new CompletionItem({label: prop.name, detail: `, ${prop.opts}`, description: `:${prop.type}`}, kind);
-          // const item = new CompletionItem({label: prop.name, detail: ` ${prop.opts}`, description: 'prop'}, kind);
-          const isRequired = prop.opts.indexOf('required: true') > -1;
-          const description = isRequired ? 'required prop' : 'prop';
-          const item = new CompletionItem({label: prop.name, detail: ` :${prop.type}`, description: description}, kind);
-          item.detail = `prop :${prop.name}, ${prop.opts}`
-          item.documentation = prop.doc;
-          item.range = document.getWordRangeAtPosition(position);
-          item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
-          return item;
-        });
-        return items;
-      } else if (spec && spec.type == 'def' || spec.type == 'defp') {
-        const items = spec.attrs.map(attr => {
-          const kind = CompletionItemKind.Field;
-          const isRequired = attr.required;
-          const description = isRequired ? 'required attr' : 'attr';
-          const item = new CompletionItem({label: attr.name, detail: ` :${attr.type}`, description: description}, kind);
-          item.detail = `attr ${attr.name}, ${attr.type}`
-          item.documentation = attr.doc;
-          item.range = document.getWordRangeAtPosition(position);
-          item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
-          return item;
-        });
-        return items;
-      }
-    }
-
-    return [];
-  }
-
-  // Inside tag head (Surface + HTML)
-
-  if (node.lang == 'surface' && node.scope == 'tag_attributes') {
+  if (node.type == 'InsertAttributes' && isHTMLtag(node.parentTag.kind)) {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
 
     // TODO: let the surface compiler generate the list of events and create the items from it
@@ -174,5 +133,74 @@ export const provideCompletionItem = async (document: TextDocument, position: Po
     return surfaceItems.concat(htmlItems.items);
   }
 
+  // Inside surface component's attributes
+
+  if (node.type == 'InsertAttributes' && isSurfaceComponent(node.parentTag.kind)) {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const componentAlias = node.parentTag.openingTagName.value;
+    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
+    return buildItemsForSurfaceComponents(component, document, position);
+  }
+
+  if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
+    return buildItemsForSurfaceComponents(component, document, position);
+  }
+
+  // Inside function component's attributes
+
+  if (node.type == 'InsertAttributes' && isFunctionComponent(node.parentTag.kind)) {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const componentAlias = node.parentTag.openingTagName.value;
+    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
+    return buildItemsForFunctionComponents(component, document, position);
+  }
+
+  if (node.type == 'AttributeName' && isFunctionComponent(node.parentAttribute.parentTag.kind)) {
+    const moduleSpec = getComponentSpecByName(module, document.uri);
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
+    return buildItemsForFunctionComponents(component, document, position);
+  }
+
   return [];
-};
+}
+
+const buildItemsForSurfaceComponents = (component: string, document: TextDocument, position: Position) => {
+  const spec = getComponentSpecByName(component, document.uri);
+  if (!spec) return [];
+
+  return spec.props.map(prop => {
+    const kind = prop.type == 'event' ? CompletionItemKind.Event : CompletionItemKind.Field;
+    // const item = new CompletionItem({label: prop.name, detail: `, ${prop.opts}`, description: `:${prop.type}`}, kind);
+    // const item = new CompletionItem({label: prop.name, detail: ` ${prop.opts}`, description: 'prop'}, kind);
+    const isRequired = prop.opts.indexOf('required: true') > -1;
+    const description = isRequired ? 'required prop' : 'prop';
+    const item = new CompletionItem({label: prop.name, detail: ` :${prop.type}`, description: description}, kind);
+    item.detail = `prop :${prop.name}, ${prop.opts}`
+    item.documentation = prop.doc;
+    item.range = document.getWordRangeAtPosition(position);
+    item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
+
+    return item;
+  });
+}
+
+const buildItemsForFunctionComponents = (component: string, document: TextDocument, position: Position) => {
+  const spec = getComponentSpecByName(component, document.uri);
+  if (!spec) return [];
+
+  return spec.attrs.map(attr => {
+    const kind = CompletionItemKind.Field;
+    const isRequired = attr.required;
+    const description = isRequired ? 'required attr' : 'attr';
+    const item = new CompletionItem({label: attr.name, detail: ` :${attr.type}`, description: description}, kind);
+    item.detail = `attr ${attr.name}, ${attr.type}`
+    item.documentation = attr.doc;
+    item.range = document.getWordRangeAtPosition(position);
+    item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
+    return item;
+  });
+}
