@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine, languages, CodeActionKind, CodeActionProvider } from 'vscode';
+import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine, languages, CodeActionKind, CodeActionProvider, RelativePattern } from 'vscode';
 import { findFirstModule, asPoint, initParser, extractElixirModuleAliases, getInsertAliasPosition } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
@@ -15,6 +15,7 @@ import {
 
 import Parser = require('web-tree-sitter');
 import { provideCodeActions } from './providers/provideCodeAction';
+import { SurfaceDefinitions } from './components';
 
 let client: LanguageClient;
 
@@ -26,8 +27,13 @@ let lastDocumentVersion: number;
 let parser: Parser;
 let tree: Parser.Tree;
 let elixirParser: Parser;
+let surfaceDefinitions: SurfaceDefinitions;
 
 export async function activate(extensionContext: ExtensionContext) {
+
+	// TODO: handle multiple workspaces
+	// TODO: get definitionsFolder from config
+	surfaceDefinitions = new SurfaceDefinitions(workspace.workspaceFolders[0], '.elixir_ls/build/test/definitions');
 
 	// The language server
 	const serverModule = extensionContext.asAbsolutePath(
@@ -105,7 +111,7 @@ export async function activate(extensionContext: ExtensionContext) {
 				const elixirTree = elixirParser.parse(readRelatedExFile(document.uri));
 				const aliases = extractElixirModuleAliases(elixirTree.rootNode);
 
-				return provideCodeActions(document, range, context, token, {aliases: aliases});
+				return provideCodeActions(document, range, context, token, {aliases: aliases, surfaceDefinitions: surfaceDefinitions});
 			}
 		}), { providedCodeActionKinds: [CodeActionKind.QuickFix] })
 	);
@@ -132,7 +138,8 @@ export async function activate(extensionContext: ExtensionContext) {
 					module: module,
 					aliases: aliases,
 					virtualDocumentContents: virtualDocumentContents,
-					workspaceFolder: workspace.getWorkspaceFolder(document.uri).uri
+					workspaceFolder: workspace.getWorkspaceFolder(document.uri).uri,
+					surfaceDefinitions: surfaceDefinitions
 				});
 			},
 			provideCompletionItem: async (document, position, context, token, _next) => {
@@ -146,7 +153,8 @@ export async function activate(extensionContext: ExtensionContext) {
 					elixirTree: elixirTree,
 					aliases: aliases,
 					module: module,
-					virtualDocumentContents: virtualDocumentContents
+					virtualDocumentContents: virtualDocumentContents,
+					surfaceDefinitions: surfaceDefinitions
 				})
 			},
 			provideHover: async (document, position, token, _next) => {
@@ -159,7 +167,8 @@ export async function activate(extensionContext: ExtensionContext) {
 					tree: getTree(document),
 					aliases: aliases,
 					module: module,
-					virtualDocumentContents: virtualDocumentContents
+					virtualDocumentContents: virtualDocumentContents,
+					surfaceDefinitions: surfaceDefinitions
 				});
 			}
 		}

@@ -1,5 +1,5 @@
 import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
-import { getComponentSpecByName, getComponents, resolveComponent } from '../components';
+import { ComponentSpec, SurfaceDefinitions } from '../components';
 import { forwardToLanguageService, toEmbeddedCode } from '../providersHelpers';
 import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
@@ -10,6 +10,7 @@ interface Context {
   aliases: Object;
   module: string,
   virtualDocumentContents: Map<string, string>;
+  surfaceDefinitions: SurfaceDefinitions;
 }
 
 const maybeReplaceClosing = (item: CompletionItem, node: CursorSurfaceInfo, replaceText: string) => {
@@ -57,6 +58,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   const aliases = context.aliases;
   const module = context.module;
   const virtualDocumentContents = context.virtualDocumentContents;
+  const surfaceDefinitions = context.surfaceDefinitions;
 
   if (node.type == 'Expression') {
     // TODO: should use something like `toEmbeddedCode` too?
@@ -68,7 +70,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   // TODO: should separate the implementation for TagBody and TagName?
   if ((node.type == 'TagBody') || node.type == 'TagName') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
-    const components = getComponents(document.uri);
+    const components = surfaceDefinitions.getComponents();
     const range = document.getWordRangeAtPosition(position, /[a-zA-Z\.][a-zA-Z\._\d]*/);
 
     // TODO: don't do this if it's a complex snippet/range?
@@ -137,40 +139,35 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   // Inside surface component's attributes
 
   if (node.type == 'InsertAttributes' && isSurfaceComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    return buildItemsForSurfaceComponents(component, document, position);
+    const entity = node.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    return buildItemsForSurfaceComponents(spec, document, position);
   }
 
   if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    return buildItemsForSurfaceComponents(component, document, position);
+    const entity = node.parentAttribute.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    return buildItemsForSurfaceComponents(spec, document, position);
   }
 
   // Inside function component's attributes
 
   if (node.type == 'InsertAttributes' && isFunctionComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    return buildItemsForFunctionComponents(component, document, position);
+    const entity = node.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    return buildItemsForFunctionComponents(spec, document, position);
   }
 
   if (node.type == 'AttributeName' && isFunctionComponent(node.parentAttribute.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    return buildItemsForFunctionComponents(component, document, position);
+    const entity = node.parentAttribute.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    return buildItemsForFunctionComponents(spec, document, position);
   }
 
   return [];
 }
 
-const buildItemsForSurfaceComponents = (component: string, document: TextDocument, position: Position) => {
-  const spec = getComponentSpecByName(component, document.uri);
+const buildItemsForSurfaceComponents = (spec: ComponentSpec, document: TextDocument, position: Position) => {
   if (!spec) return [];
 
   return spec.props.map(prop => {
@@ -189,8 +186,7 @@ const buildItemsForSurfaceComponents = (component: string, document: TextDocumen
   });
 }
 
-const buildItemsForFunctionComponents = (component: string, document: TextDocument, position: Position) => {
-  const spec = getComponentSpecByName(component, document.uri);
+const buildItemsForFunctionComponents = (spec: ComponentSpec, document: TextDocument, position: Position) => {
   if (!spec) return [];
 
   return spec.attrs.map(attr => {

@@ -1,5 +1,5 @@
 import { Uri, Position, TextDocument, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
-import { getComponentSpecByName, resolveComponent } from '../components';
+import { SurfaceDefinitions } from '../components';
 import { CursorSurfaceInfo, getCursorInfo, isComponent, isFunctionComponent, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
 import path = require('path');
@@ -11,6 +11,7 @@ interface Context {
   aliases: Object;
   virtualDocumentContents: Map<string, string>;
   workspaceFolder: Uri
+  surfaceDefinitions: SurfaceDefinitions
 }
 
 // Copied/pasted from TextDocument
@@ -66,6 +67,7 @@ const sourceToUri = (source: string, workspaceFolder: Uri): Uri => {
 export const provideDefinition = async (document: TextDocument, position: Position, _token: CancellationToken, context: Context): Promise<Definition | DefinitionLink[]> => {
   const tree = context.tree;
   const node = getCursorInfo(tree, document.offsetAt(position));
+
   if (!node) return [];
 
   // console.log('provideDefinition for node:', JSON.stringify(node, null, 2));
@@ -105,6 +107,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   const aliases = context.aliases;
   const module = context.module;
   const workspaceFolder = context.workspaceFolder;
+  const surfaceDefinitions = context.surfaceDefinitions;
 
   // Click on expression (Elixir)
 
@@ -116,10 +119,12 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
     // Inject/append the surface code into the elixir code as a fake function
     const prefix = '\ndefp __fake_surface_render__() do\n~F"""\n';
+    // TODO: use tree-sitter-elixir for the following logic
     const contentBefore = relatedExFileContent.replace(/\send\s*$/s, prefix)
     const updatedContent = contentBefore + document.getText() + '\n"""\nend\nend';
     const lastPosition = positionAt(contentBefore, contentBefore.length);
     const updatedPosition = lastPosition.translate(position.line, position.character);
+    //
 
     // Forward the command to the Elixir LS so it can properly find the definition
     const virtualDocumentContents = context.virtualDocumentContents;
@@ -150,9 +155,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Click on surface component's name
 
 	if (node.type == 'TagName' && isSurfaceComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
-		const spec = getComponentSpecByName(component, document.uri);
+		const spec = surfaceDefinitions.getComponentSpecByEntity(node.entity, module, aliases);
 
 		if (spec) {
       const uri = sourceToUri(spec.source, workspaceFolder);
@@ -163,9 +166,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Click on function component's name
 
   if (node.type == 'TagName' && isFunctionComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
-    const spec = getComponentSpecByName(component, document.uri);
+    const spec = surfaceDefinitions.getComponentSpecByEntity(node.entity, module, aliases);
 
     if (spec) {
       const uri = sourceToUri(spec.source, workspaceFolder);
@@ -176,10 +177,8 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Click on any component's prop name
 
 	if (node.type == 'AttributeName') {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec?.aliases, moduleSpec.imports);
-		const spec = getComponentSpecByName(component, document.uri);
+    const entity = node.parentAttribute.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
 
     if (spec && isComponent(node.parentAttribute.parentTag.kind)) {
       const attrs = spec.attrs || spec.props;

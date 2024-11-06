@@ -1,5 +1,5 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands } from 'vscode';
-import { getComponentSpecByName, resolveComponent } from '../components';
+import { SurfaceDefinitions } from '../components';
 import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
 import { toEmbeddedCode } from '../providersHelpers';
@@ -9,6 +9,7 @@ interface Context {
   aliases: Object;
   module: string;
   virtualDocumentContents: Map<string, string>;
+  surfaceDefinitions: SurfaceDefinitions;
 }
 
 export const provideHover = async (document: TextDocument, position: Position, _token: CancellationToken, context: Context): Promise<Hover> => {
@@ -66,6 +67,7 @@ export const provideHover = async (document: TextDocument, position: Position, _
 const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument, position: Position, context: Context): Promise<Hover> => {
   const aliases = context.aliases;
   const module = context.module;
+  const surfaceDefinitions = context.surfaceDefinitions;
 
   // TODO: this will require the same strategy done in `provideDefinition` to provide
   // accurate infomation coming from aliases or imports.
@@ -88,9 +90,8 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Hover surface component's name
 
 	if (node.type == 'TagName' && isSurfaceComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
-    const spec = getComponentSpecByName(component, document.uri);
+    const component = surfaceDefinitions.resolveComponent(node.entity, module, aliases);
+    const spec = surfaceDefinitions.getComponentSpecByName(component);
     if (spec) {
       const contents = '```elixir\nalias ' + component + '\n```\n##### *use Surface.Component*\n---\n\n' + spec.docs;
       return new Hover(new MarkdownString(contents));
@@ -100,9 +101,8 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Hover function component's name
 
 	if (node.type == 'TagName' && isFunctionComponent(node.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
-    const spec = getComponentSpecByName(component, document.uri);
+    const component = surfaceDefinitions.resolveComponent(node.entity, module, aliases);
+    const spec = surfaceDefinitions.getComponentSpecByName(component);
     if (spec) {
       const contents = '```elixir\n' + component + '/1\n```\n##### *Function Component*\n---\n\n' + spec.docs;
       return new Hover(new MarkdownString(contents));
@@ -112,10 +112,9 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Hover surface component's prop name
 
 	if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    const prop = getComponentSpecByName(component, document.uri)?.props.find(prop => prop.name == node.value);
+    const entity = node.parentAttribute.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    const prop = spec?.props.find(prop => prop.name == node.value);
 
     if (prop) {
       const contents = '```elixir\n' + `prop ${prop.name}, ${prop.opts}` + '\n```\n\n' + prop.doc;
@@ -126,10 +125,9 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
   // Hover function component's prop name
 
 	if (node.type == 'AttributeName' && isFunctionComponent(node.parentAttribute.parentTag.kind)) {
-    const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
-    const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
-    const attr = getComponentSpecByName(component, document.uri)?.attrs.find(attr => attr.name == node.value);
+    const entity = node.parentAttribute.parentTag.openingTagName.entity;
+    const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
+    const attr = spec?.attrs.find(attr => attr.name == node.value);
 
     if (attr) {
       let contents = '```elixir\n' + `attr :${attr.name}, ${attr.type}`;

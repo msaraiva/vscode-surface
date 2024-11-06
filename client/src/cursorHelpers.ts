@@ -158,7 +158,7 @@ const buildCursorInfo = (node: Parser.SyntaxNode): CursorInfo => {
       type: 'AttributeName',
       value: node.text,
       parentAttribute: attibute
-    } as AttributeName;
+    };
   }
 
   /* InsertAttributes */
@@ -211,7 +211,7 @@ const buildCursorInfo = (node: Parser.SyntaxNode): CursorInfo => {
     };
   }
 
-  // expression
+  // Expression
 
   if (node.type == 'expression_value') {
     return {
@@ -222,6 +222,5 @@ const buildCursorInfo = (node: Parser.SyntaxNode): CursorInfo => {
 
   // anything else
 
-  console.log(`unhandled node of type '${node.type}', node: ${node.toString}`)
   return undefined;
 }
