@@ -1,4 +1,4 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, MarkdownString } from 'vscode';
 import { ComponentSpec, SurfaceDefinitions } from '../components';
 import { forwardToLanguageService, toEmbeddedCode } from '../providersHelpers';
 import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent } from '../cursorHelpers';
@@ -86,29 +86,32 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
     });
 
     const surfaceItems = components.map(component => {
-      const type = component.alias.startsWith('.') ? 'def' : 'surface';
-      let description: string, kind: CompletionItemKind, sortText: string;
+      const spec = surfaceDefinitions.getComponentSpecByName(component.name);
+      let description: string, kind: CompletionItemKind, sortText: string, detail: string;
 
-      if (type == 'surface') {
+      if (spec.type == 'surface') {
         description = component.name;
         kind = CompletionItemKind.Class;
         sortText = 'a-' + component.alias;
+				detail = `Surface component <${component.alias}/>`;
       } else {
         description = component.name + '/1';
         kind = CompletionItemKind.Function;
         sortText = 'b-' + component.alias;
+        detail = `Phoenix component <.${component.alias}/>`;
       }
 
       const item = new CompletionItem({label: component.alias, description: description}, kind);
 
-      item.detail = `__surface_component__:${component.name}`;
+      item.detail = detail;
       item.sortText = sortText;
+      item.documentation = new MarkdownString(spec.docs)
 
       // Always replace the whole tag with the selected item
       item.range = range;
       maybeReplaceClosing(item, node, component.alias, treeHasError);
 
-      if (type == 'surface' && !aliases[component.alias]) {
+      if (spec.type == 'surface' && !aliases[component.alias]) {
         item.command = {
           command: 'surface.addAlias',
           title: 'Insert module alias',
