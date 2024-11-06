@@ -13,8 +13,8 @@ interface Context {
   surfaceDefinitions: SurfaceDefinitions;
 }
 
-const maybeReplaceClosing = (item: CompletionItem, node: CursorSurfaceInfo, replaceText: string) => {
-  if (node.type == 'TagName' && !node.parentTag.isSelfClosing) {
+const maybeReplaceClosing = (item: CompletionItem, node: CursorSurfaceInfo, replaceText: string, treeHasError: boolean) => {
+  if (!treeHasError && node.type == 'TagName' && !node.parentTag.isSelfClosing) {
     item.additionalTextEdits = [
       {
         newText: replaceText,
@@ -59,6 +59,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   const module = context.module;
   const virtualDocumentContents = context.virtualDocumentContents;
   const surfaceDefinitions = context.surfaceDefinitions;
+  const treeHasError = context.tree.rootNode.hasError;
 
   if (node.type == 'Expression') {
     // TODO: should use something like `toEmbeddedCode` too?
@@ -78,7 +79,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
       // Always replace the whole tag with the selected item
       item.range = range;
       if (typeof item.label == 'string') {
-        maybeReplaceClosing(item, node, item.label);
+        maybeReplaceClosing(item, node, item.label, treeHasError);
         item.sortText = 'c-' + item.label;
       }
       return item;
@@ -105,7 +106,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
 
       // Always replace the whole tag with the selected item
       item.range = range;
-      maybeReplaceClosing(item, node, component.alias);
+      maybeReplaceClosing(item, node, component.alias, treeHasError);
 
       if (type == 'surface' && !aliases[component.alias]) {
         item.command = {
