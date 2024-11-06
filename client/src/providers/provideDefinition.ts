@@ -1,8 +1,9 @@
-import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
-import { CursorSurfaceInfo, getCursorInfo, isComponent, isFunctionComponent, isHTMLtag, isSurfaceComponent, resolveComponent, toEmbeddedCode } from '../parserHelpers';
-import { getComponentSpecByName } from '../components';
+import { Uri, Position, TextDocument, CancellationToken, commands, Definition, DefinitionLink, Range, workspace, LocationLink, Location } from 'vscode';
+import { getComponentSpecByName, resolveComponent } from '../components';
+import { CursorSurfaceInfo, getCursorInfo, isComponent, isFunctionComponent, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
 import path = require('path');
+import { toEmbeddedCode } from '../providersHelpers';
 
 interface Context {
   tree: Parser.Tree;

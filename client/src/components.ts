@@ -32,6 +32,22 @@ export interface ComponentSpec {
   aliases?: Object;
 }
 
+const resolveAlias = (component: string, codeAliases: Object, compiledAliases: Object) => {
+  compiledAliases = compiledAliases || {};
+  const [alias, ...rest] = component.split('.');
+  return [(codeAliases[alias] || compiledAliases[alias] || alias)].concat(rest).join('.');
+}
+
+export const resolveComponent = (entity: string, codeAliases: Object, compiledAliases: Object, compiledImports: Object) => {
+  compiledImports = compiledImports || {};
+
+  if (entity[0] == entity[0].toLowerCase()) {
+    return compiledImports[entity];
+  } else {
+    return resolveAlias(entity, codeAliases, compiledAliases);
+  }
+}
+
 // TODO: instead of reading the file many times, watch for changes, and reload it
 export const findComponentsForAlias = (documentUri: Uri, alias: string): Array<string> => {
   // TODO: Try to read ElixirLS's folder first (`.elixir_ls/build/test/definitions/`),

@@ -1,6 +1,7 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import { ExtensionContext, workspace, TextDocument, TextDocumentContentChangeEvent, commands, window, Uri, WorkspaceEdit, Position, EndOfLine, languages, CodeActionKind, CodeActionProvider } from 'vscode';
-import { findFirstModule, asPoint, initParser, extractElixirModuleAliases, readRelatedExFile, getInsertAliasPosition, getRelatedExFilePath } from './parserHelpers';
+import { findFirstModule, asPoint, initParser, extractElixirModuleAliases, getInsertAliasPosition } from './parserHelpers';
 import { provideHover } from './providers/provideHover';
 import { provideDefinition } from './providers/provideDefinition';
 import { provideCompletionItem } from './providers/provideCompletionItem';
@@ -25,16 +26,6 @@ let lastDocumentVersion: number;
 let parser: Parser;
 let tree: Parser.Tree;
 let elixirParser: Parser;
-
-const getTree = (document: TextDocument): Parser.Tree => {
-	if (document.uri.toString() != lastDocumentKey || document.version != lastDocumentVersion) {
-		console.debug('Building tree for ' + document.uri)
-		tree = parser.parse(document.getText());
-		lastDocumentKey = document.uri.toString();
-		lastDocumentVersion = document.version;
-	}
-	return tree;
-};
 
 export async function activate(extensionContext: ExtensionContext) {
 
@@ -192,3 +183,32 @@ export function deactivate(): Thenable<void> | undefined {
 	}
 	return client.stop();
 }
+
+const getTree = (document: TextDocument): Parser.Tree => {
+	if (document.uri.toString() != lastDocumentKey || document.version != lastDocumentVersion) {
+		console.debug('Building tree for ' + document.uri)
+		tree = parser.parse(document.getText());
+		lastDocumentKey = document.uri.toString();
+		lastDocumentVersion = document.version;
+	}
+	return tree;
+};
+
+const getRelatedExFilePath = (uri: Uri): string => {
+	const baseName = uri.path.slice(1).split('.').slice(0, -1).join('.');
+	return baseName + '.ex';
+}
+
+const readRelatedExFile = (uri: Uri) => {
+	const exFile = getRelatedExFilePath(uri)
+
+	// TODO: use `workspace.fs` instead of `fs`.
+  // See: https://code.visualstudio.com/updates/v1_37#_vscodeworkspacefs
+	if (fs.existsSync(exFile)) {
+		try {
+			return fs.readFileSync(exFile).toString();
+		} catch (e) {
+			console.error(e);
+		}
+	}
+};

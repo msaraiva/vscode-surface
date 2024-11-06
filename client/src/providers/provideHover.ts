@@ -1,7 +1,8 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands } from 'vscode';
-import { getCursorInfo, resolveComponent, CursorSurfaceInfo, toEmbeddedCode, isSurfaceComponent, isFunctionComponent, isComponent } from '../parserHelpers';
-import { getComponentSpecByName } from '../components';
+import { getComponentSpecByName, resolveComponent } from '../components';
+import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
+import { toEmbeddedCode } from '../providersHelpers';
 
 interface Context {
   tree: Parser.Tree;

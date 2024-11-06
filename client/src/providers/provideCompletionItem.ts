@@ -1,7 +1,7 @@
 import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
-import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent, resolveComponent, toEmbeddedCode } from '../parserHelpers';
-import { getComponentSpecByName, getComponents } from '../components';
-import { forwardToLanguageService } from '../providerHelpers';
+import { getComponentSpecByName, getComponents, resolveComponent } from '../components';
+import { forwardToLanguageService, toEmbeddedCode } from '../providersHelpers';
+import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
 
 interface Context {
