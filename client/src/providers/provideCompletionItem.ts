@@ -12,12 +12,12 @@ interface Context {
   virtualDocumentContents: Map<string, string>;
 }
 
-const maybeReplaceClosing = (item: CompletionItem, node, replaceText: string) => {
-  if ((node.scope == 'tag_name' || node.scope == 'component_name') && node.closingRange) {
+const maybeReplaceClosing = (item: CompletionItem, node: CursorSurfaceInfo, replaceText: string) => {
+  if (node.type == 'TagName' && !node.parentTag.isSelfClosing) {
     item.additionalTextEdits = [
       {
         newText: replaceText,
-        range: node.closingRange
+        range: node.parentTag.closingTagName.range
       }
     ]
   }
@@ -65,6 +65,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
 
   // Inside tag body (Surface + HTML)
 
+  // TODO: should separate the implementation for TagBody and TagName?
   if ((node.type == 'TagBody') || node.type == 'TagName') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = getComponents(document.uri);
@@ -137,14 +138,14 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
 
   if (node.type == 'InsertAttributes' && isSurfaceComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentTag.openingTagName.value;
+    const componentAlias = node.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     return buildItemsForSurfaceComponents(component, document, position);
   }
 
   if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     return buildItemsForSurfaceComponents(component, document, position);
   }
@@ -153,14 +154,14 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
 
   if (node.type == 'InsertAttributes' && isFunctionComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentTag.openingTagName.value;
+    const componentAlias = node.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     return buildItemsForFunctionComponents(component, document, position);
   }
 
   if (node.type == 'AttributeName' && isFunctionComponent(node.parentAttribute.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     return buildItemsForFunctionComponents(component, document, position);
   }

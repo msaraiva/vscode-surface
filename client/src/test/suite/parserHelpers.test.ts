@@ -368,9 +368,10 @@ suite('getCursorInfo', () => {
 			`<For|m></Form>`
 		);
 
-		const {type, value, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		const {type, value, entity, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
 		assert.equal(type, 'TagName')
 		assert.equal(value, 'Form')
+		assert.equal(entity, 'Form')
     assert.equal(parentTag.kind, 'component')
 		assert.deepEqual(range, new Range(0, 1, 0, 5))
 		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 8, 0, 12))
@@ -419,6 +420,42 @@ suite('getCursorInfo', () => {
     assert.equal(parentTag.kind, 'component')
 		assert.deepEqual(range, new Range(0, 1, 0, 5))
 		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 9, 0, 13))
+	});
+
+  // macro_component_name
+
+	test('cursor at macro_component_name - <#For|m>', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<#For|m></#Form>`
+		);
+
+		const {type, value, entity, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
+		assert.equal(value, '#Form')
+		assert.equal(entity, 'Form')
+    assert.equal(parentTag.kind, 'macro_component')
+		assert.deepEqual(range, new Range(0, 1, 0, 6))
+		assert.equal(parentTag.isSelfClosing, false)
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 9, 0, 14))
+	});
+
+  // function_component_name
+
+	test('cursor at function_component_name - <.for|m>', async () => {
+		const parser = await getParser('surface');
+		const {code, offset} = codeWithCursor(
+			`<.for|m></.form>`
+		);
+
+		const {type, value, entity, range, parentTag} = getCursorInfo(parser.parse(code), offset) as TagName;
+		assert.equal(type, 'TagName')
+		assert.equal(value, '.form')
+		assert.equal(entity, 'form')
+    assert.equal(parentTag.kind, 'function_component')
+		assert.deepEqual(range, new Range(0, 1, 0, 6))
+		assert.equal(parentTag.isSelfClosing, false)
+		assert.deepEqual(parentTag.closingTagName.range, new Range(0, 9, 0, 14))
 	});
 
 	// tag_attributes

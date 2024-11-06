@@ -12,14 +12,13 @@ const resolveAlias = (component: string, codeAliases: Object, compiledAliases: O
   return [(codeAliases[alias] || compiledAliases[alias] || alias)].concat(rest).join('.');
 }
 
-export const resolveComponent = (component: string, codeAliases: Object, compiledAliases: Object, compiledImports: Object) => {
+export const resolveComponent = (entity: string, codeAliases: Object, compiledAliases: Object, compiledImports: Object) => {
   compiledImports = compiledImports || {};
 
-  if (component.startsWith('.')) {
-    const func = component.slice(1);
-    return compiledImports[func];
+  if (entity[0] == entity[0].toLowerCase()) {
+    return compiledImports[entity];
   } else {
-    return resolveAlias(component, codeAliases, compiledAliases);
+    return resolveAlias(entity, codeAliases, compiledAliases);
   }
 }
 
@@ -251,6 +250,7 @@ export interface TagName {
   value: string;
   parentTag: Tag;
   range: Range;
+  entity: string;
 }
 
 export interface TagBody {
@@ -354,7 +354,7 @@ const buildTag = (node: Parser.SyntaxNode): Tag => {
   tag.openingTagName = buildTagName(node.parent.firstChild.descendantsOfType(tagName)[0], tag);
 
   if (!isSelfClosing) {
-    tag.closingTagName = buildTagName(node.parent.lastChild.descendantsOfType(tagName)[0], tag);
+    tag.closingTagName = buildTagName(node.parent.lastChild.firstNamedChild, tag);
   }
 
   return tag;
@@ -366,6 +366,7 @@ const buildTagName = (node: Parser.SyntaxNode, tag: Tag): TagName => {
     value: node.text,
     range: asRange(node.startPosition, node.endPosition),
     parentTag: tag,
+    entity: node.text.replace(/^[\#\.]/, '')
   }
 }
 

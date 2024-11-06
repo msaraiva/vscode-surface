@@ -88,7 +88,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'TagName' && isSurfaceComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
+    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
     const spec = getComponentSpecByName(component, document.uri);
     if (spec) {
       const contents = '```elixir\nalias ' + component + '\n```\n##### *use Surface.Component*\n---\n\n' + spec.docs;
@@ -100,7 +100,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'TagName' && isFunctionComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
+    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
     const spec = getComponentSpecByName(component, document.uri);
     if (spec) {
       const contents = '```elixir\n' + component + '/1\n```\n##### *Function Component*\n---\n\n' + spec.docs;
@@ -112,7 +112,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     const prop = getComponentSpecByName(component, document.uri)?.props.find(prop => prop.name == node.value);
 
@@ -126,7 +126,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'AttributeName' && isFunctionComponent(node.parentAttribute.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec.aliases, moduleSpec.imports);
     const attr = getComponentSpecByName(component, document.uri)?.attrs.find(attr => attr.name == node.value);
 

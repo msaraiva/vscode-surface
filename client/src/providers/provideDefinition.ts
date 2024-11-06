@@ -150,7 +150,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'TagName' && isSurfaceComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
+    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
 		const spec = getComponentSpecByName(component, document.uri);
 
 		if (spec) {
@@ -163,7 +163,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
   if (node.type == 'TagName' && isFunctionComponent(node.parentTag.kind)) {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const component = resolveComponent(node.value, aliases, moduleSpec.aliases, moduleSpec.imports);
+    const component = resolveComponent(node.entity, aliases, moduleSpec.aliases, moduleSpec.imports);
     const spec = getComponentSpecByName(component, document.uri);
 
     if (spec) {
@@ -176,7 +176,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
 
 	if (node.type == 'AttributeName') {
     const moduleSpec = getComponentSpecByName(module, document.uri);
-    const componentAlias = node.parentAttribute.parentTag.openingTagName.value;
+    const componentAlias = node.parentAttribute.parentTag.openingTagName.entity;
     const component = resolveComponent(componentAlias, aliases, moduleSpec?.aliases, moduleSpec.imports);
 		const spec = getComponentSpecByName(component, document.uri);
 
