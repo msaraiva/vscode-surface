@@ -1,6 +1,6 @@
 import { Uri, Position, TextDocument, MarkdownString, ProviderResult, Hover, CancellationToken, commands } from 'vscode';
 import { SurfaceDefinitions } from '../components';
-import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isSurfaceComponent } from '../cursorHelpers';
+import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
 import { toEmbeddedCode } from '../providersHelpers';
 
@@ -108,6 +108,23 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, document: TextDocument
       return new Hover(new MarkdownString(contents));
     }
 	}
+
+  // Hover HTML attribute name
+
+  if (node.type == 'AttributeName' && isHTMLtag(node.parentAttribute.parentTag.kind)) {
+    let doc: string;
+    if (node.value.startsWith(':')) {
+      doc = surfaceDefinitions.getDirectiveDoc(node.value)
+    } else if (node.value.startsWith('phx-')) {
+      doc = surfaceDefinitions.getTagAttributeDoc(node.value)
+    }
+
+    if (doc) {
+      const md = new MarkdownString(doc)
+      md.supportThemeIcons = true;
+      return new Hover(md);
+    }
+  }
 
   // Hover surface component's prop name
 

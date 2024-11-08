@@ -131,15 +131,17 @@ suite('getCursorInfo', () => {
 		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
 	});
 
-	test('cursor at attribute_name - <div class|>', async () => {
+	// directive_name
+
+	test('cursor at directive_name is handled as AttributeName - <div :class|>', async () => {
 		const parser = await getParser('surface');
 		const {code, offset} = codeWithCursor(
-			`<div class|>`
+			`<div :class|>`
 		);
 
 		const {type, value, parentAttribute} = getCursorInfo(parser.parse(code), offset) as AttributeName;
 		assert.equal(type, 'AttributeName')
-		assert.equal(value, 'class')
+		assert.equal(value, ':class')
 		assert.equal(parentAttribute.parentTag.type, 'Tag')
 		assert.equal(parentAttribute.parentTag.openingTagName.value, 'div')
 	});

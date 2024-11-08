@@ -147,7 +147,7 @@ const buildCursorInfo = (node: Parser.SyntaxNode): CursorInfo => {
 
   /* AttributeName */
 
-  if (node.type == 'attribute_name') {
+  if (node.type == 'attribute_name' || node.type == 'directive_name') {
     const tag = buildTag(node.parent.parent);
     const attibute: Attribute = {
       type: 'Attribute',

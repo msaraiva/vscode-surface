@@ -1,8 +1,10 @@
-import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, MarkdownString } from 'vscode';
+import { Position, TextDocument, CancellationToken, CompletionContext, CompletionItem, CompletionList, CompletionItemKind, MarkdownString, Range } from 'vscode';
 import { ComponentSpec, SurfaceDefinitions } from '../components';
 import { forwardToLanguageService, toEmbeddedCode } from '../providersHelpers';
 import { CursorSurfaceInfo, getCursorInfo, isFunctionComponent, isHTMLtag, isSurfaceComponent } from '../cursorHelpers';
 import Parser = require('web-tree-sitter');
+
+const wordRangeRegex = /[a-zA-Z\.\:][a-zA-Z\._\d\-]*/
 
 interface Context {
   tree: Parser.Tree;
@@ -72,7 +74,7 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   if ((node.type == 'TagBody') || node.type == 'TagName') {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
     const components = surfaceDefinitions.getComponents();
-    const range = document.getWordRangeAtPosition(position, /[a-zA-Z\.][a-zA-Z\._\d]*/);
+    const range = document.getWordRangeAtPosition(position, wordRangeRegex);
 
     // TODO: don't do this if it's a complex snippet/range?
     htmlItems.items = htmlItems.items.map(item => {
@@ -127,17 +129,12 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
 
   // Inside HTML tag attributes (list both, Surface and HTML items)
 
-  if (node.type == 'InsertAttributes' && isHTMLtag(node.parentTag.kind)) {
+  if ((node.type == 'InsertAttributes' && isHTMLtag(node.parentTag.kind) || (node.type == 'AttributeName' && isHTMLtag(node.parentAttribute.parentTag.kind)))) {
     const htmlItems = await forwardToLanguageService('html', originalUri, document.getText(), position, completionContext, virtualDocumentContents);
-
-    // TODO: let the surface compiler generate the list of events and create the items from it
-    const surfaceItems = [
-       new CompletionItem(':on-click', CompletionItemKind.Event),
-       new CompletionItem(':on-focus', CompletionItemKind.Event),
-       new CompletionItem(':on-blur', CompletionItemKind.Event)
-    ]
-
-    return surfaceItems.concat(htmlItems.items);
+    const range = document.getWordRangeAtPosition(position, wordRangeRegex);
+    const directivesItems = surfaceDefinitions.getDirectivesForTag().map(spec => buildAttributeItem(spec, 'surface directive', range));
+    const attributesItems = surfaceDefinitions.getAttributesForTag().map(spec => buildAttributeItem(spec, 'phoenix attribute', range));
+    return htmlItems.items.concat(directivesItems, attributesItems);
   }
 
   // Inside surface component's attributes
@@ -145,7 +142,9 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   if (node.type == 'InsertAttributes' && isSurfaceComponent(node.parentTag.kind)) {
     const entity = node.parentTag.openingTagName.entity;
     const spec = surfaceDefinitions.getComponentSpecByEntity(entity, module, aliases);
-    return buildItemsForSurfaceComponents(spec, document, position);
+    const range = document.getWordRangeAtPosition(position, wordRangeRegex);
+    const directivesItems = surfaceDefinitions.getDirectivesForComponent().map(spec => buildAttributeItem(spec, 'surface directive', range));
+    return buildItemsForSurfaceComponents(spec, document, position).concat(directivesItems);
   }
 
   if (node.type == 'AttributeName' && isSurfaceComponent(node.parentAttribute.parentTag.kind)) {
@@ -169,6 +168,16 @@ const handleSurfaceNode = async (node: CursorSurfaceInfo, originalUri: string, d
   }
 
   return [];
+}
+
+const buildAttributeItem = (spec: {name: string, doc: string, type: 'expression' | 'event' | 'any'}, description: string, range: Range) => {
+  const kind = spec.type == 'event' ? CompletionItemKind.Event : CompletionItemKind.Property;
+  const item = new CompletionItem({label: spec.name, description: description}, kind)
+  item.range = range;
+  const doc = new MarkdownString(spec.doc)
+  doc.supportThemeIcons = true;
+  item.documentation = doc;
+  return item;
 }
 
 const buildItemsForSurfaceComponents = (spec: ComponentSpec, document: TextDocument, position: Position) => {
@@ -200,7 +209,7 @@ const buildItemsForFunctionComponents = (spec: ComponentSpec, document: TextDocu
     const item = new CompletionItem({label: attr.name, detail: ` :${attr.type}`, description: description}, kind);
     item.detail = `attr ${attr.name}, ${attr.type}`
     item.documentation = attr.doc;
-    item.range = document.getWordRangeAtPosition(position);
+    item.range = document.getWordRangeAtPosition(position, wordRangeRegex);
     item.sortText = (isRequired ? 'a-' : 'b-') + item.label;
     return item;
   });
