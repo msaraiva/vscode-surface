@@ -59,8 +59,28 @@ export const provideHover = async (document: TextDocument, position: Position, _
 
   // Inside Surface template
 
+  let surfaceHover: Hover;
   if (node.type != 'EmbeddedContent') {
-    return handleSurfaceNode(node, document, position, context);
+    surfaceHover = await handleSurfaceNode(node, document, position, context);
+  }
+
+  if (surfaceHover) {
+    return surfaceHover;
+  } else {
+    // In case we couldn't handle the request, let's forward to the default HTML Language server
+    const virtualDocumentContents = context.virtualDocumentContents;
+    const originalUri = document.uri.toString(true);
+    virtualDocumentContents.set(originalUri, document.getText());
+    const vdocUriString = `embedded-content://html/${encodeURIComponent(originalUri)}.html`;
+    const vdocUri = Uri.parse(vdocUriString);
+
+    const hover = await commands.executeCommand(
+      "vscode.executeHoverProvider",
+      vdocUri,
+      position
+    );
+
+    if (hover) return hover[0];
   }
 };
 
